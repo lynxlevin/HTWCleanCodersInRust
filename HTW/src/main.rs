@@ -1,5 +1,12 @@
 fn main() {
-    println!("Hello, world!");
+    let north = Direction::North;
+    let south = Direction::South;
+    let east = Direction::East;
+    let west = Direction::West;
+    println!("{:?}: opposite of {:?}", north, north.opposite());
+    println!("{:?}: opposite of {:?}", south, south.opposite());
+    println!("{:?}: opposite of {:?}", east, east.opposite());
+    println!("{:?}: opposite of {:?}", west, west.opposite());
 }
 
 trait HtwMessageReceiver {
@@ -18,4 +25,23 @@ trait HtwMessageReceiver {
     fn player_moves_to_wumpus();
     fn wumpus_moves_to_player();
     fn bats_transport();
+}
+
+#[derive(Debug)]
+enum Direction {
+    North,
+    South,
+    East,
+    West,
+}
+
+impl Direction {
+    fn opposite(&self) -> Direction {
+        match self {
+            Direction::North => Direction::South,
+            Direction::South => Direction::North,
+            Direction::East => Direction::West,
+            Direction::West => Direction::East,
+        }
+    }
 }
