@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "HTW"
+name = "htw"
 version = "0.1.0"
