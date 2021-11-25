@@ -72,8 +72,8 @@ trait Command {
 }
 
 // just to kill error
-struct Test {}
-impl Command for Test {
+struct DummyCommand {}
+impl Command for DummyCommand {
     fn execute(&self) {
         println!("test");
     }
