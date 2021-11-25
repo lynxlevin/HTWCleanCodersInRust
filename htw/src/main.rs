@@ -2,6 +2,8 @@
 // Todo: implement Main.java
 // Todo: implement HuntTheWumpusGame.java
 
+use std::process;
+
 fn main() {
     let north = Direction::North;
     let south = Direction::South;
@@ -11,24 +13,115 @@ fn main() {
     println!("{:?}: opposite of {:?}", south, south.opposite());
     println!("{:?}: opposite of {:?}", east, east.opposite());
     println!("{:?}: opposite of {:?}", west, west.opposite());
+
+    let message_receiver = EnglishHtwMessageReceiver {};
+    message_receiver.no_passage();
+    message_receiver.hear_bats();
+    message_receiver.hear_pit();
+    message_receiver.smell_wumpus();
+    message_receiver.passage(north);
+    message_receiver.no_arrows();
+    message_receiver.arrow_shot();
+    message_receiver.player_shoots_self_in_back();
+    // message_receiver.player_kills_wumpus();
+    message_receiver.player_shoots_wall();
+    message_receiver.arrows_found(1);
+    message_receiver.arrows_found(2);
+    message_receiver.fell_in_pit();
+    // message_receiver.player_moves_to_wumpus();
+    // message_receiver.wumpus_moves_to_player();
+    message_receiver.bats_transport();
 }
 
 trait HtwMessageReceiver {
-    fn no_passage();
-    fn hear_bats();
-    fn hear_pit();
-    fn smell_wumpus();
-    fn passage(direction: Direction);
-    fn no_arrows();
-    fn arrow_shot();
-    fn player_shoots_self_in_back();
-    fn player_kills_wumpus();
-    fn player_shoots_wall();
-    fn arrows_found(arrows_found: u32);
-    fn fell_in_pit();
-    fn player_moves_to_wumpus();
-    fn wumpus_moves_to_player();
-    fn bats_transport();
+    fn no_passage(&self);
+    fn hear_bats(&self);
+    fn hear_pit(&self);
+    fn smell_wumpus(&self);
+    fn passage(&self, direction: Direction);
+    fn no_arrows(&self);
+    fn arrow_shot(&self);
+    fn player_shoots_self_in_back(&self);
+    fn player_kills_wumpus(&self);
+    fn player_shoots_wall(&self);
+    fn arrows_found(&self, arrows_found: u32);
+    fn fell_in_pit(&self);
+    fn player_moves_to_wumpus(&self);
+    fn wumpus_moves_to_player(&self);
+    fn bats_transport(&self);
+}
+
+struct EnglishHtwMessageReceiver {}
+impl HtwMessageReceiver for EnglishHtwMessageReceiver {
+    fn no_passage(&self) {
+        println!("No Passage.");
+    }
+
+    fn hear_bats(&self) {
+        println!("You hear chirping.");
+    }
+
+    fn hear_pit(&self) {
+        println!("You hear wind.");
+    }
+
+    fn smell_wumpus(&self) {
+        println!("There is a terrible smell.");
+    }
+
+    fn passage(&self, direction: Direction) {
+        println!("You can go {}", direction.name());
+    }
+
+    fn no_arrows(&self) {
+        println!("You have no arrows.");
+    }
+
+    fn arrow_shot(&self) {
+        println!("Thwang!");
+    }
+
+    fn player_shoots_self_in_back(&self) {
+        println!("Ow!  You shot yourself in the back.");
+        // hit(3); // Todo: imple
+    }
+
+    fn player_kills_wumpus(&self) {
+        println!("You killed the Wumpus.");
+        process::exit(0);
+    }
+
+    fn player_shoots_wall(&self) {
+        println!("You shot the wall and the ricochet hurt you.");
+        // hit(3); // Todo: imple
+    }
+
+    fn arrows_found(&self, arrows_found: u32) {
+        let mut plural = "";
+        if arrows_found != 1 {
+            plural = "s";
+        }
+        println!("You found {} arrow{}.", arrows_found, plural);
+    }
+
+    fn fell_in_pit(&self) {
+        println!("You fell in a pit and hurt yourself.");
+        // hit(4); // Todo: imple
+    }
+
+    fn player_moves_to_wumpus(&self) {
+        println!("You walked into the waiting arms of the Wumpus.");
+        process::exit(0);
+    }
+
+    fn wumpus_moves_to_player(&self) {
+        println!("The Wumpus has found you.");
+        process::exit(0);
+    }
+
+    fn bats_transport(&self) {
+        println!("Some bats carried you away.");
+    }
 }
 
 #[derive(Debug)]
@@ -46,6 +139,15 @@ impl Direction {
             Direction::South => Direction::North,
             Direction::East => Direction::West,
             Direction::West => Direction::East,
+        }
+    }
+
+    fn name(&self) -> &str {
+        match self {
+            Direction::North => "North",
+            Direction::South => "South",
+            Direction::East => "West",
+            Direction::West => "East",
         }
     }
 }
@@ -82,3 +184,28 @@ impl Command for DummyCommand {
         println!("test");
     }
 }
+
+// // HuntTheWumpusGame.java
+// struct HuntTheWumpusGame {
+//     // private List<Connection> connections = new ArrayList<>();
+
+//     // private Set<String> caverns = new HashSet<>();
+//     player_cavern: String,
+//     message_receiver: Box<dyn HtwMessageReceiver>,
+//     // private Set<String> batCaverns = new HashSet<>();
+//     // private Set<String> pitCaverns = new HashSet<>();
+//     wumpus_cavern: String,
+//     quiver: i32,
+//     // private Map<String, Integer> arrowsIn = new HashMap<>();
+// }
+
+// impl HuntTheWumpusGame {
+//     fn new(message_receiver: Box<dyn HtwMessageReceiver>) -> HuntTheWumpusGame {
+//         HuntTheWumpusGame {
+//             player_cavern: String::from("None"),
+//             message_receiver,
+//             wumpus_cavern: String::from("None"),
+//             quiver: 0,
+//         }
+//     }
+// }
