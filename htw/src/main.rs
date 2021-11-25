@@ -1,3 +1,7 @@
+// Todo: implement HtwFactory.java
+// Todo: implement Main.java
+// Todo: implement HuntTheWumpusGame.java
+
 fn main() {
     let north = Direction::North;
     let south = Direction::South;
