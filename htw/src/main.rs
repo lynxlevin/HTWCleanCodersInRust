@@ -1,6 +1,6 @@
-// Todo: implement HtwFactory.java
-// Todo: implement Main.java
-// Todo: implement HuntTheWumpusGame.java
+// TODO: implement HtwFactory.java
+// TODO: implement Main.java
+// TODO: implement HuntTheWumpusGame.java
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -85,7 +85,7 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
 
     fn player_shoots_self_in_back(&self) {
         println!("Ow!  You shot yourself in the back.");
-        // hit(3); // Todo: imple
+        // hit(3); // TODO: imple
     }
 
     fn player_kills_wumpus(&self) {
@@ -95,7 +95,7 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
 
     fn player_shoots_wall(&self) {
         println!("You shot the wall and the ricochet hurt you.");
-        // hit(3); // Todo: imple
+        // hit(3); // TODO: imple
     }
 
     fn arrows_found(&self, arrows_found: u32) {
@@ -108,7 +108,7 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
 
     fn fell_in_pit(&self) {
         println!("You fell in a pit and hurt yourself.");
-        // hit(4); // Todo: imple
+        // hit(4); // TODO: imple
     }
 
     fn player_moves_to_wumpus(&self) {
@@ -155,24 +155,20 @@ impl Direction {
 }
 
 trait HuntTheWumpus {
-    fn set_player_cavern(player_cavern: &str);
-
-    // fn getPlayerCavern() -> &str;
-    fn add_bat_cavern(cavern: &str);
-    fn add_pit_cavern(cavern: &str);
-    fn set_wumpus_cavern(wumpus_cavern: &str);
-    // fn getWumpusCavern() -> &str;
-    fn set_quiver(arrows: u32);
-    fn get_quiver() -> u32;
-    fn get_arrows_in_cavern(cavern: &str) -> u32;
-    fn connect_cavern(from: &str, to: &str, direction: Direction);
-    fn find_destination(cavern: &str, direction: Direction) -> &str;
-    // HuntTheWumpusGame.Command makeRestCommand(); // original code; a mistake? it should return HuntTheWumpus.Command
-    fn make_rest_command() -> Box<dyn Command>;
-    // HuntTheWumpusGame.Command makeShootCommand(Direction direction); // original code; a mistake? it should return HuntTheWumpus.Command
-    fn make_shoot_command(direction: Direction) -> Box<dyn Command>;
-    // HuntTheWumpusGame.Command makeMoveCommand(Direction direction); // original code; a mistake? it should return HuntTheWumpus.Command
-    fn make_move_command(direction: Direction) -> Box<dyn Command>;
+    fn set_player_cavern(&mut self, player_cavern: &str);
+    fn get_player_cavern(&self) -> &str;
+    fn add_bat_cavern(&mut self, cavern: &str);
+    fn add_pit_cavern(&mut self, cavern: &str);
+    fn set_wumpus_cavern(&mut self, wumpus_cavern: &str);
+    fn get_wumpus_cavern(&self) -> &str;
+    fn set_quiver(&mut self, arrows: u32);
+    fn get_quiver(&self) -> u32;
+    fn get_arrows_in_cavern(&self, cavern: &str) -> u32;
+    fn connect_cavern(&mut self, from: &str, to: &str, direction: Direction);
+    fn find_destination(&self, cavern: &str, direction: Direction) -> Option<&str>;
+    // fn make_rest_command(&self) -> Box<dyn Command>;
+    // fn make_shoot_command(&self, direction: Direction) -> Box<dyn Command>;
+    // fn make_move_command(&self, direction: Direction) -> Box<dyn Command>;
 }
 
 trait Command {
@@ -212,8 +208,8 @@ struct HuntTheWumpusGame {
     bat_caverns: HashSet<String>,
     pit_caverns: HashSet<String>,
     wumpus_cavern: String,
-    quiver: i32,
-    arrows_in: HashMap<String, i32>,
+    quiver: u32,
+    arrows_in: HashMap<String, u32>,
 }
 
 impl HuntTheWumpusGame {
@@ -230,4 +226,54 @@ impl HuntTheWumpusGame {
             arrows_in: HashMap::new(),
         }
     }
+}
+
+impl HuntTheWumpus for HuntTheWumpusGame {
+    fn set_player_cavern(&mut self, player_cavern: &str) {
+        self.player_cavern = String::from(player_cavern);
+    }
+    fn get_player_cavern(&self) -> &str {
+        &self.player_cavern
+    }
+    fn add_bat_cavern(&mut self, cavern: &str) {
+        self.bat_caverns.insert(String::from(cavern));
+    }
+    fn add_pit_cavern(&mut self, cavern: &str) {
+        self.pit_caverns.insert(String::from(cavern));
+    }
+    fn set_wumpus_cavern(&mut self, wumpus_cavern: &str) {
+        self.wumpus_cavern = String::from(wumpus_cavern);
+    }
+    fn get_wumpus_cavern(&self) -> &str {
+        &self.wumpus_cavern
+    }
+    fn set_quiver(&mut self, arrows: u32) {
+        self.quiver = arrows;
+    }
+    fn get_quiver(&self) -> u32 {
+        self.quiver
+    }
+    fn get_arrows_in_cavern(&self, cavern: &str) -> u32 {
+        // TODO: see if zeroifnull method can be implemented
+        match self.arrows_in.get(cavern) {
+            Some(&number) => number,
+            _ => 0,
+        }
+    }
+    fn connect_cavern(&mut self, from: &str, to: &str, direction: Direction) {
+        self.connections.push(Connection::new(from, to, direction));
+        self.caverns.insert(String::from(from));
+        self.caverns.insert(String::from(to));
+    }
+    fn find_destination(&self, cavern: &str, direction: Direction) -> Option<&str> {
+        for c in &self.connections {
+            if c.from == cavern && c.direction.name() == direction.name() {
+                return Some(&c.to);
+            }
+        }
+        None
+    }
+    // fn make_rest_command(&self) -> Box<dyn Command>
+    // fn make_shoot_command(&self, direction: Direction) -> Box<dyn Command>
+    // fn make_move_command(&self, direction: Direction) -> Box<dyn Command>
 }
