@@ -2,6 +2,8 @@
 // Todo: implement Main.java
 // Todo: implement HuntTheWumpusGame.java
 
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::process;
 
 fn main() {
@@ -202,26 +204,30 @@ impl Connection {
     }
 }
 
-// struct HuntTheWumpusGame {
-//     // private List<Connection> connections = new ArrayList<>();
+struct HuntTheWumpusGame {
+    connections: Vec<Connection>,
+    caverns: HashSet<String>,
+    player_cavern: String,
+    message_receiver: Box<dyn HtwMessageReceiver>,
+    bat_caverns: HashSet<String>,
+    pit_caverns: HashSet<String>,
+    wumpus_cavern: String,
+    quiver: i32,
+    arrows_in: HashMap<String, i32>,
+}
 
-//     // private Set<String> caverns = new HashSet<>();
-//     player_cavern: String,
-//     message_receiver: Box<dyn HtwMessageReceiver>,
-//     // private Set<String> batCaverns = new HashSet<>();
-//     // private Set<String> pitCaverns = new HashSet<>();
-//     wumpus_cavern: String,
-//     quiver: i32,
-//     // private Map<String, Integer> arrowsIn = new HashMap<>();
-// }
-
-// impl HuntTheWumpusGame {
-//     fn new(message_receiver: Box<dyn HtwMessageReceiver>) -> HuntTheWumpusGame {
-//         HuntTheWumpusGame {
-//             player_cavern: String::from("None"),
-//             message_receiver,
-//             wumpus_cavern: String::from("None"),
-//             quiver: 0,
-//         }
-//     }
-// }
+impl HuntTheWumpusGame {
+    fn new(message_receiver: Box<dyn HtwMessageReceiver>) -> HuntTheWumpusGame {
+        HuntTheWumpusGame {
+            connections: vec![],
+            caverns: HashSet::new(),
+            player_cavern: String::from("None"),
+            message_receiver,
+            bat_caverns: HashSet::new(),
+            pit_caverns: HashSet::new(),
+            wumpus_cavern: String::from("None"),
+            quiver: 0,
+            arrows_in: HashMap::new(),
+        }
+    }
+}
