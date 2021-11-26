@@ -185,7 +185,23 @@ impl Command for DummyCommand {
     }
 }
 
-// // HuntTheWumpusGame.java
+// HuntTheWumpusGame.java
+struct Connection {
+    from: String,
+    to: String,
+    direction: Direction,
+}
+
+impl Connection {
+    fn new(from: &str, to: &str, direction: Direction) -> Connection {
+        Connection {
+            from: String::from(from),
+            to: String::from(to),
+            direction,
+        }
+    }
+}
+
 // struct HuntTheWumpusGame {
 //     // private List<Connection> connections = new ArrayList<>();
 
