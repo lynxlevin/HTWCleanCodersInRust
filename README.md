@@ -1,5 +1,5 @@
 # About HTWCleanCodersInRust
-It's an implementation of [Uncle Bob's Hunt the Wumpus in clean architecture](https://github.com/unclebob/HTWCleanCoders/blob/master/HTW/src/htw/game/HuntTheWumpusGame.java) in Rust.
+It's an implementation of [Uncle Bob's Hunt the Wumpus in clean architecture](https://github.com/unclebob/HTWCleanCoders) in Rust.
 My aims are,
 - To learn Rust Programming Language,
 - To practice clean architecture,
