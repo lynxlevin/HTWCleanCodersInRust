@@ -2,6 +2,7 @@
 // TODO: implement Main.java
 // TODO: implement HuntTheWumpusGame.java
 
+use rand::Rng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::process;
@@ -21,7 +22,7 @@ fn main() {
     message_receiver.hear_bats();
     message_receiver.hear_pit();
     message_receiver.smell_wumpus();
-    message_receiver.passage(north);
+    message_receiver.passage(&north);
     message_receiver.no_arrows();
     message_receiver.arrow_shot();
     message_receiver.player_shoots_self_in_back();
@@ -40,7 +41,7 @@ trait HtwMessageReceiver {
     fn hear_bats(&self);
     fn hear_pit(&self);
     fn smell_wumpus(&self);
-    fn passage(&self, direction: Direction);
+    fn passage(&self, direction: &Direction);
     fn no_arrows(&self);
     fn arrow_shot(&self);
     fn player_shoots_self_in_back(&self);
@@ -71,7 +72,7 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
         println!("There is a terrible smell.");
     }
 
-    fn passage(&self, direction: Direction) {
+    fn passage(&self, direction: &Direction) {
         println!("You can go {}", direction.name());
     }
 
@@ -226,6 +227,61 @@ impl HuntTheWumpusGame {
             arrows_in: HashMap::new(),
         }
     }
+
+    fn report_status(&self) {
+        self.report_available_directions();
+        if self.report_nearby(&self.bat_caverns) {
+            self.message_receiver.hear_bats();
+        }
+        if self.report_nearby(&self.pit_caverns) {
+            self.message_receiver.hear_pit();
+        }
+        if self.report_nearby(&HashSet::from([String::from(&self.wumpus_cavern)])) {
+            self.message_receiver.smell_wumpus();
+        }
+    }
+
+    // TODO: see if report_neaby could be implemented using precicate
+    // this is a work-around without predicate
+    fn report_nearby(&self, test_caverns: &HashSet<String>) -> bool {
+        for c in &self.connections {
+            if c.from == self.player_cavern && test_caverns.contains(&String::from(&c.to)) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn report_available_directions(&self) {
+        for c in &self.connections {
+            if c.from == self.player_cavern {
+                self.message_receiver.passage(&c.direction);
+            }
+        }
+    }
+
+    fn move_wumpus(&mut self) {
+        let mut wumpus_choices = vec![];
+        for c in &self.connections {
+            if self.wumpus_cavern == c.from {
+                wumpus_choices.push(&c.to);
+            }
+        }
+        wumpus_choices.push(&self.wumpus_cavern);
+
+        let n_choices = wumpus_choices.len();
+        let choice = rand::thread_rng().gen_range(0..=n_choices);
+        self.wumpus_cavern = String::from(wumpus_choices[choice]);
+    }
+
+    fn randomly_transport_player(&mut self) {
+        let mut transport_choices = HashSet::new();
+        transport_choices.extend(&self.caverns);
+        transport_choices.remove(&self.player_cavern);
+        let n_choices = transport_choices.len();
+        let choice = rand::thread_rng().gen_range(0..=n_choices);
+        self.player_cavern = Vec::from_iter(transport_choices)[choice].to_string();
+    }
 }
 
 impl HuntTheWumpus for HuntTheWumpusGame {
@@ -254,12 +310,12 @@ impl HuntTheWumpus for HuntTheWumpusGame {
         self.quiver
     }
     fn get_arrows_in_cavern(&self, cavern: &str) -> u32 {
-        // TODO: see if zeroifnull method can be implemented
         match self.arrows_in.get(cavern) {
             Some(&number) => number,
-            _ => 0,
+            None => 0,
         }
     }
+
     fn connect_cavern(&mut self, from: &str, to: &str, direction: Direction) {
         self.connections.push(Connection::new(from, to, direction));
         self.caverns.insert(String::from(from));
@@ -273,6 +329,7 @@ impl HuntTheWumpus for HuntTheWumpusGame {
         }
         None
     }
+    // TODO: below 3 functions need GameCommand implement
     // fn make_rest_command(&self) -> Box<dyn Command>
     // fn make_shoot_command(&self, direction: Direction) -> Box<dyn Command>
     // fn make_move_command(&self, direction: Direction) -> Box<dyn Command>
