@@ -164,7 +164,7 @@ trait HuntTheWumpus {
     fn check_wumpus_moved_to_player(&self);
     fn execute_command(&mut self);
     fn make_rest_command(&mut self);
-    // fn make_shoot_command(&self, direction: Direction) -> Box<dyn Command>;
+    fn make_shoot_command(&mut self, direction: Direction);
     fn make_move_command(&mut self, direction: Direction);
 }
 
@@ -343,7 +343,9 @@ impl HuntTheWumpus for HuntTheWumpusGame {
     fn make_rest_command(&mut self) {
         self.command = Box::new(RestCommand {});
     }
-    // fn make_shoot_command(&self, direction: Direction) -> Box<dyn Command>
+    fn make_shoot_command(&mut self, direction: Direction) {
+        self.command = Box::new(ShootCommand { direction });
+    }
     fn make_move_command(&mut self, direction: Direction) {
         self.command = Box::new(MoveCommand { direction });
     }
@@ -500,20 +502,160 @@ impl Command for MoveCommand {
     }
 }
 
-struct ShootCommand {}
+struct ShootCommand {
+    direction: Direction,
+}
+impl ShootCommand {
+    fn get_arrows_in_cavern(&self, arrows_in: &HashMap<String, u32>, cavern: &String) -> u32 {
+        match arrows_in.get(cavern) {
+            Some(&number) => number,
+            None => 0,
+        }
+    }
+
+    fn increment_arrows_in_cavern(
+        &self,
+        arrows_in: &HashMap<String, u32>,
+        arrow_cavern: &String,
+    ) -> Option<HashMap<String, u32>> {
+        let arrows = self.get_arrows_in_cavern(arrows_in, arrow_cavern);
+        let update_arrows_in = Some(HashMap::from([(arrow_cavern.to_string(), arrows + 1)]));
+        update_arrows_in
+    }
+}
 impl Command for ShootCommand {
     fn process_command(
         &self,
-        _message_receiver: &Box<dyn HtwMessageReceiver>,
-        _connections: &Vec<Connection>,
+        message_receiver: &Box<dyn HtwMessageReceiver>,
+        connections: &Vec<Connection>,
         _caverns: &HashSet<String>,
-        _player_cavern: &String,
-        _wumpus_cavern: &String,
+        player_cavern: &String,
+        wumpus_cavern: &String,
         _pit_caverns: &HashSet<String>,
         _bat_caverns: &HashSet<String>,
-        _quiver: u32,
-        _arrows_in: &HashMap<String, u32>,
+        quiver: u32,
+        arrows_in: &HashMap<String, u32>,
     ) -> (Option<String>, Option<u32>, Option<HashMap<String, u32>>) {
-        (None, None, None)
+        if quiver == 0 {
+            message_receiver.no_arrows();
+            return (None, None, None);
+        } else {
+            message_receiver.arrow_shot();
+            let new_quiver = Some(quiver - 1);
+            let mut arrow_tracker = ArrowTracker {
+                hit_something: false,
+                arrow_cavern: player_cavern.to_string(),
+            };
+            arrow_tracker.track_arrow(
+                &self.direction,
+                message_receiver,
+                connections,
+                player_cavern,
+                wumpus_cavern,
+            );
+            if arrow_tracker.arrow_hit_something() {
+                return (None, None, None);
+            } else {
+                let update_arrows_in =
+                    self.increment_arrows_in_cavern(arrows_in, &arrow_tracker.get_arrow_cavern());
+                return (None, new_quiver, update_arrows_in);
+            }
+        }
+    }
+}
+
+struct ArrowTracker {
+    hit_something: bool,
+    arrow_cavern: String,
+}
+impl ArrowTracker {
+    fn new(starting_cavern: String) -> ArrowTracker {
+        ArrowTracker {
+            hit_something: false,
+            arrow_cavern: starting_cavern,
+        }
+    }
+
+    fn arrow_hit_something(&self) -> bool {
+        self.hit_something
+    }
+
+    fn get_arrow_cavern(&self) -> String {
+        self.arrow_cavern.to_string()
+    }
+
+    fn next_cavern(
+        &self,
+        cavern: String,
+        direction: &Direction,
+        connections: &Vec<Connection>,
+    ) -> Option<String> {
+        for c in connections {
+            if cavern == c.from && direction.name() == c.direction.name() {
+                return Some(c.to.to_string());
+            }
+        }
+        return None;
+    }
+
+    fn shot_self_in_back(
+        &mut self,
+        message_receiver: &Box<dyn HtwMessageReceiver>,
+        player_cavern: &String,
+    ) -> bool {
+        if &self.arrow_cavern == player_cavern {
+            message_receiver.player_shoots_self_in_back();
+            self.hit_something = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn shot_wumpus(
+        &mut self,
+        message_receiver: &Box<dyn HtwMessageReceiver>,
+        wumpus_cavern: &String,
+    ) -> bool {
+        if &self.arrow_cavern == wumpus_cavern {
+            message_receiver.player_kills_wumpus();
+            self.hit_something = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn track_arrow(
+        &mut self,
+        direction: &Direction,
+        message_receiver: &Box<dyn HtwMessageReceiver>,
+        connections: &Vec<Connection>,
+        player_cavern: &String,
+        wumpus_cavern: &String,
+    ) {
+        let mut next_cavern = None;
+        let mut count = 0;
+        while {
+            next_cavern = self.next_cavern(self.arrow_cavern.to_string(), direction, connections);
+            &next_cavern
+        } != &None
+        {
+            count += 1;
+            self.arrow_cavern = next_cavern.unwrap();
+            if self.shot_self_in_back(message_receiver, player_cavern) {
+                return ();
+            };
+            if self.shot_wumpus(message_receiver, wumpus_cavern) {
+                return ();
+            };
+            if count > 100 {
+                return ();
+            };
+            if &self.arrow_cavern == player_cavern {
+                message_receiver.player_shoots_wall();
+                return ();
+            }
+        }
     }
 }
