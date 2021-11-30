@@ -17,10 +17,13 @@ fn main() {
   game.set_quiver(5);
   game.make_rest_command();
   game.execute_command();
-  let hit_points = 100;
   loop {
     println!("{}", game.get_player_cavern());
-    println!("Health: {} arrows: {}", hit_points, game.get_quiver());
+    println!(
+      "Health: {} arrows: {}",
+      game.get_hit_points(),
+      game.get_quiver()
+    );
     println!("game.make_rest_command");
     game.make_rest_command();
     println!(">");
@@ -40,7 +43,6 @@ fn main() {
       },
       Err(error) => println!("error: {}", error),
     }
-    println!("game.execute_command");
     game.execute_command();
   }
 }

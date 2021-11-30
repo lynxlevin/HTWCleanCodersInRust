@@ -53,7 +53,6 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
 
     fn player_shoots_self_in_back(&self) {
         println!("Ow!  You shot yourself in the back.");
-        // hit(3); // TODO: imple
     }
 
     fn player_kills_wumpus(&self) {
@@ -63,7 +62,6 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
 
     fn player_shoots_wall(&self) {
         println!("You shot the wall and the ricochet hurt you.");
-        // hit(3); // TODO: imple
     }
 
     fn arrows_found(&self, arrows_found: u32) {
@@ -76,7 +74,6 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
 
     fn fell_in_pit(&self) {
         println!("You fell in a pit and hurt yourself.");
-        // hit(4); // TODO: imple
     }
 
     fn player_moves_to_wumpus(&self) {
@@ -116,8 +113,8 @@ impl Direction {
         match self {
             Direction::North => "North",
             Direction::South => "South",
-            Direction::East => "West",
-            Direction::West => "East",
+            Direction::East => "East",
+            Direction::West => "West",
         }
     }
 }
@@ -131,6 +128,7 @@ pub trait HuntTheWumpus {
     fn get_wumpus_cavern(&self) -> &str;
     fn set_quiver(&mut self, arrows: u32);
     fn get_quiver(&self) -> u32;
+    fn get_hit_points(&self) -> u32;
     fn any_other(&self, cavern: &str) -> String;
     fn any_cavern(&self) -> String;
     fn maybe_connect_cavern(&mut self, cavern: &str, direction: Direction);
@@ -155,7 +153,12 @@ trait Command {
         bat_caverns: &HashSet<String>,
         quiver: u32,
         arrows_in: &HashMap<String, u32>,
-    ) -> (Option<String>, Option<u32>, Option<HashMap<String, u32>>);
+    ) -> (
+        Option<String>,
+        Option<u32>,
+        Option<HashMap<String, u32>>,
+        Option<u32>,
+    );
 }
 
 // HuntTheWumpusGame.java
@@ -186,6 +189,7 @@ pub struct HuntTheWumpusGame {
     quiver: u32,
     arrows_in: HashMap<String, u32>,
     command: Box<dyn Command>,
+    hit_points: u32,
 }
 
 impl HuntTheWumpusGame {
@@ -204,6 +208,7 @@ impl HuntTheWumpusGame {
             quiver: 0,
             arrows_in: HashMap::new(),
             command: Box::new(RestCommand {}),
+            hit_points: 10,
         }) as Box<dyn HuntTheWumpus>
     }
 
@@ -269,6 +274,14 @@ impl HuntTheWumpusGame {
         }
         None
     }
+
+    fn hit(&mut self, points: u32) {
+        self.hit_points -= points;
+        if self.hit_points <= 0 {
+            println!("You have died of your wounds.");
+            process::exit(0);
+        }
+    }
 }
 
 impl HuntTheWumpus for HuntTheWumpusGame {
@@ -295,6 +308,9 @@ impl HuntTheWumpus for HuntTheWumpusGame {
     }
     fn get_quiver(&self) -> u32 {
         self.quiver
+    }
+    fn get_hit_points(&self) -> u32 {
+        self.hit_points
     }
 
     fn any_other(&self, cavern: &str) -> String {
@@ -356,17 +372,18 @@ impl HuntTheWumpus for HuntTheWumpusGame {
         }
     }
     fn execute_command(&mut self) {
-        let (new_player_cavern, new_quiver, update_arrows_in) = self.command.process_command(
-            &self.message_receiver,
-            &self.connections,
-            &self.caverns,
-            &self.player_cavern,
-            &self.wumpus_cavern,
-            &self.pit_caverns,
-            &self.bat_caverns,
-            self.quiver,
-            &self.arrows_in,
-        );
+        let (new_player_cavern, new_quiver, update_arrows_in, self_damage) =
+            self.command.process_command(
+                &self.message_receiver,
+                &self.connections,
+                &self.caverns,
+                &self.player_cavern,
+                &self.wumpus_cavern,
+                &self.pit_caverns,
+                &self.bat_caverns,
+                self.quiver,
+                &self.arrows_in,
+            );
         match new_player_cavern {
             Some(s) => self.player_cavern = s,
             _ => (),
@@ -377,6 +394,10 @@ impl HuntTheWumpus for HuntTheWumpusGame {
         };
         match update_arrows_in {
             Some(s) => self.arrows_in.extend(s),
+            _ => (),
+        };
+        match self_damage {
+            Some(u) => self.hit(u),
             _ => (),
         };
         self.move_wumpus();
@@ -407,8 +428,13 @@ impl Command for RestCommand {
         _bat_caverns: &HashSet<String>,
         _quiver: u32,
         _arrows_in: &HashMap<String, u32>,
-    ) -> (Option<String>, Option<u32>, Option<HashMap<String, u32>>) {
-        (None, None, None)
+    ) -> (
+        Option<String>,
+        Option<u32>,
+        Option<HashMap<String, u32>>,
+        Option<u32>,
+    ) {
+        (None, None, None, None)
     }
 }
 
@@ -432,10 +458,13 @@ impl MoveCommand {
         message_receiver: &Box<dyn HtwMessageReceiver>,
         player_cavern: &String,
         pit_caverns: &HashSet<String>,
-    ) {
+    ) -> Option<u32> {
+        let mut self_damage = None;
         if pit_caverns.contains(player_cavern) {
             message_receiver.fell_in_pit();
+            self_damage = Some(4);
         }
+        self_damage
     }
 
     fn randomly_transport_player(
@@ -518,12 +547,18 @@ impl Command for MoveCommand {
         bat_caverns: &HashSet<String>,
         quiver: u32,
         arrows_in: &HashMap<String, u32>,
-    ) -> (Option<String>, Option<u32>, Option<HashMap<String, u32>>) {
+    ) -> (
+        Option<String>,
+        Option<u32>,
+        Option<HashMap<String, u32>>,
+        Option<u32>,
+    ) {
         match self.find_destination(player_cavern, &self.direction, connections) {
             Some(s) => {
                 let new_player_cavern = s;
                 self.check_for_wumpus(message_receiver, &new_player_cavern, wumpus_cavern);
-                self.check_for_pit(message_receiver, &new_player_cavern, pit_caverns);
+                let self_damage =
+                    self.check_for_pit(message_receiver, &new_player_cavern, pit_caverns);
                 let new_player_cavern = match self.check_for_bats(
                     message_receiver,
                     caverns,
@@ -536,11 +571,11 @@ impl Command for MoveCommand {
                 let (new_quiver, update_arrows_in) =
                     self.check_for_arrows(message_receiver, &new_player_cavern, quiver, arrows_in);
                 let new_player_cavern = Some(new_player_cavern);
-                return (new_player_cavern, new_quiver, update_arrows_in);
+                return (new_player_cavern, new_quiver, update_arrows_in, self_damage);
             }
             None => {
                 message_receiver.no_passage();
-                return (None, None, None);
+                return (None, None, None, None);
             }
         }
     }
@@ -579,10 +614,15 @@ impl Command for ShootCommand {
         _bat_caverns: &HashSet<String>,
         quiver: u32,
         arrows_in: &HashMap<String, u32>,
-    ) -> (Option<String>, Option<u32>, Option<HashMap<String, u32>>) {
+    ) -> (
+        Option<String>,
+        Option<u32>,
+        Option<HashMap<String, u32>>,
+        Option<u32>,
+    ) {
         if quiver == 0 {
             message_receiver.no_arrows();
-            return (None, None, None);
+            return (None, None, None, None);
         } else {
             message_receiver.arrow_shot();
             let new_quiver = Some(quiver - 1);
@@ -590,7 +630,7 @@ impl Command for ShootCommand {
                 hit_something: false,
                 arrow_cavern: player_cavern.to_string(),
             };
-            arrow_tracker.track_arrow(
+            let self_damage = arrow_tracker.track_arrow(
                 &self.direction,
                 message_receiver,
                 connections,
@@ -598,11 +638,11 @@ impl Command for ShootCommand {
                 wumpus_cavern,
             );
             if arrow_tracker.arrow_hit_something() {
-                return (None, None, None);
+                return (None, None, None, self_damage);
             } else {
                 let update_arrows_in =
                     self.increment_arrows_in_cavern(arrows_in, &arrow_tracker.get_arrow_cavern());
-                return (None, new_quiver, update_arrows_in);
+                return (None, new_quiver, update_arrows_in, None);
             }
         }
     }
@@ -677,7 +717,7 @@ impl ArrowTracker {
         connections: &Vec<Connection>,
         player_cavern: &String,
         wumpus_cavern: &String,
-    ) {
+    ) -> Option<u32> {
         let mut next_cavern = None;
         let mut count = 0;
         while {
@@ -688,18 +728,21 @@ impl ArrowTracker {
             count += 1;
             self.arrow_cavern = next_cavern.unwrap();
             if self.shot_self_in_back(message_receiver, player_cavern) {
-                return ();
+                let self_damage = Some(3);
+                return self_damage;
             };
             if self.shot_wumpus(message_receiver, wumpus_cavern) {
-                return ();
+                return None;
             };
             if count > 100 {
-                return ();
+                return None;
             };
             if &self.arrow_cavern == player_cavern {
                 message_receiver.player_shoots_wall();
-                return ();
+                let self_damage = Some(3);
+                return self_damage;
             }
         }
+        None
     }
 }
