@@ -94,7 +94,7 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Direction {
     North,
     South,
@@ -122,7 +122,7 @@ impl Direction {
     }
 }
 
-trait HuntTheWumpus {
+pub trait HuntTheWumpus {
     fn set_player_cavern(&mut self, player_cavern: &str);
     fn get_player_cavern(&self) -> &str;
     fn add_bat_cavern(&mut self, cavern: &str);
@@ -131,7 +131,11 @@ trait HuntTheWumpus {
     fn get_wumpus_cavern(&self) -> &str;
     fn set_quiver(&mut self, arrows: u32);
     fn get_quiver(&self) -> u32;
-    fn connect_cavern(&mut self, from: &str, to: &str, direction: Direction);
+    fn any_other(&self, cavern: &str) -> String;
+    fn any_cavern(&self) -> String;
+    fn maybe_connect_cavern(&mut self, cavern: &str, direction: Direction);
+    fn connect_cavern(&mut self, from: &str, to: &str, direction: &Direction);
+    fn connect_caverns(&mut self);
     fn check_wumpus_moved_to_player(&self);
     fn execute_command(&mut self);
     fn make_rest_command(&mut self);
@@ -162,7 +166,7 @@ struct Connection {
 }
 
 impl Connection {
-    fn new(from: &str, to: &str, direction: Direction) -> Connection {
+    fn new(from: &str, to: &str, &direction: &Direction) -> Connection {
         Connection {
             from: String::from(from),
             to: String::from(to),
@@ -171,7 +175,7 @@ impl Connection {
     }
 }
 
-struct HuntTheWumpusGame {
+pub struct HuntTheWumpusGame {
     connections: Vec<Connection>,
     caverns: HashSet<String>,
     player_cavern: String,
@@ -185,10 +189,13 @@ struct HuntTheWumpusGame {
 }
 
 impl HuntTheWumpusGame {
-    fn new(message_receiver: Box<dyn HtwMessageReceiver>) -> HuntTheWumpusGame {
-        HuntTheWumpusGame {
+    pub fn new(
+        message_receiver: Box<dyn HtwMessageReceiver>,
+        caverns: HashSet<String>,
+    ) -> Box<dyn HuntTheWumpus> {
+        Box::new(HuntTheWumpusGame {
             connections: vec![],
-            caverns: HashSet::new(),
+            caverns,
             player_cavern: String::from("None"),
             message_receiver,
             bat_caverns: HashSet::new(),
@@ -197,7 +204,7 @@ impl HuntTheWumpusGame {
             quiver: 0,
             arrows_in: HashMap::new(),
             command: Box::new(RestCommand {}),
-        }
+        }) as Box<dyn HuntTheWumpus>
     }
 
     fn report_status(&self) {
@@ -242,8 +249,25 @@ impl HuntTheWumpusGame {
         wumpus_choices.push(&self.wumpus_cavern);
 
         let n_choices = wumpus_choices.len();
-        let choice = rand::thread_rng().gen_range(0..=n_choices);
+        let choice = rand::thread_rng().gen_range(0..n_choices);
         self.wumpus_cavern = String::from(wumpus_choices[choice]);
+    }
+
+    // FIXME: not used
+    fn connect_if_available(&mut self, from: &str, to: &str, direction: &Direction) {
+        match self.find_destination(from, direction) {
+            None => self.connect_cavern(&from, &to, direction),
+            _ => (),
+        }
+    }
+
+    fn find_destination(&self, cavern: &str, direction: &Direction) -> Option<String> {
+        for c in &self.connections {
+            if c.from == cavern && c.direction.name() == direction.name() {
+                return Some(c.to.to_string());
+            }
+        }
+        None
     }
 }
 
@@ -273,11 +297,59 @@ impl HuntTheWumpus for HuntTheWumpusGame {
         self.quiver
     }
 
-    fn connect_cavern(&mut self, from: &str, to: &str, direction: Direction) {
-        self.connections.push(Connection::new(from, to, direction));
-        self.caverns.insert(String::from(from));
-        self.caverns.insert(String::from(to));
+    fn any_other(&self, cavern: &str) -> String {
+        let mut other = String::from(cavern);
+        while other == String::from(cavern) {
+            other = self.any_cavern();
+        }
+        other
     }
+
+    fn any_cavern(&self) -> String {
+        let vector = Vec::from_iter(&self.caverns);
+        let n = vector.len();
+        let choice = rand::thread_rng().gen_range(0..n);
+        vector[choice].to_string()
+    }
+
+    // FIXME: not used
+    fn connect_cavern(&mut self, from: &str, to: &str, direction: &Direction) {
+        self.connections.push(Connection::new(from, to, direction));
+    }
+
+    // FIXME: not used
+    fn maybe_connect_cavern(&mut self, cavern: &str, direction: Direction) {
+        if rand::thread_rng().gen_range(0..10) > 2 {
+            let other = self.any_other(cavern);
+            self.connect_if_available(cavern, &other, &direction);
+            self.connect_if_available(&other, cavern, &direction.opposite());
+        }
+    }
+
+    // FIXME: cannot break into several functions due to error below
+    // "cannot borrow `*self` as mutable because it is also borrowed as immutable"
+    fn connect_caverns(&mut self) {
+        let directions = vec![
+            Direction::North,
+            Direction::South,
+            Direction::East,
+            Direction::West,
+        ];
+        for cavern in &self.caverns {
+            for direction in &directions {
+                if rand::thread_rng().gen_range(0..10) > 2 {
+                    let other = self.any_other(cavern);
+                    match self.find_destination(cavern, direction) {
+                        None => self
+                            .connections
+                            .push(Connection::new(cavern, &other, direction)),
+                        _ => (),
+                    }
+                }
+            }
+        }
+    }
+
     fn check_wumpus_moved_to_player(&self) {
         if self.player_cavern == self.wumpus_cavern {
             self.message_receiver.wumpus_moves_to_player();
@@ -375,7 +447,7 @@ impl MoveCommand {
         transport_choices.extend(caverns);
         transport_choices.remove(&player_cavern);
         let n_choices = transport_choices.len();
-        let choice = rand::thread_rng().gen_range(0..=n_choices);
+        let choice = rand::thread_rng().gen_range(0..n_choices);
         Vec::from_iter(transport_choices)[choice].to_string()
     }
 
@@ -419,14 +491,15 @@ impl MoveCommand {
         (new_quiver, update_arrows_in)
     }
 
+    // TODO: figure out a way to put this in the Game struct; giving self(game) in the parameter?
     fn find_destination(
         &self,
-        player_cavern: &String,
+        cavern: &String,
         direction: &Direction,
         connections: &Vec<Connection>,
     ) -> Option<String> {
         for c in connections {
-            if &c.from == player_cavern && c.direction.name() == direction.name() {
+            if &c.from == cavern && c.direction.name() == direction.name() {
                 return Some(c.to.to_string());
             }
         }

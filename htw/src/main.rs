@@ -1,32 +1,128 @@
 use htw::Direction;
 use htw::EnglishHtwMessageReceiver;
 use htw::HtwMessageReceiver;
+use htw::HuntTheWumpus;
+use htw::HuntTheWumpusGame;
+use rand::Rng;
+use std::collections::HashSet;
+use std::io;
+use std::process;
 
 fn main() {
-  let north = Direction::North;
-  let south = Direction::South;
-  let east = Direction::East;
-  let west = Direction::West;
-  println!("{:?}: opposite of {:?}", north, north.opposite());
-  println!("{:?}: opposite of {:?}", south, south.opposite());
-  println!("{:?}: opposite of {:?}", east, east.opposite());
-  println!("{:?}: opposite of {:?}", west, west.opposite());
-
   let message_receiver = EnglishHtwMessageReceiver {};
-  message_receiver.no_passage();
-  message_receiver.hear_bats();
-  message_receiver.hear_pit();
-  message_receiver.smell_wumpus();
-  message_receiver.passage(&north);
-  message_receiver.no_arrows();
-  message_receiver.arrow_shot();
-  message_receiver.player_shoots_self_in_back();
-  // message_receiver.player_kills_wumpus();
-  message_receiver.player_shoots_wall();
-  message_receiver.arrows_found(1);
-  message_receiver.arrows_found(2);
-  message_receiver.fell_in_pit();
-  // message_receiver.player_moves_to_wumpus();
-  // message_receiver.wumpus_moves_to_player();
-  message_receiver.bats_transport();
+  let caverns = create_caverns();
+  let mut game = HuntTheWumpusGame::new(Box::new(message_receiver), caverns);
+  game.connect_caverns();
+  set_special_caverns(&mut game);
+  game.set_quiver(5);
+  game.make_rest_command();
+  game.execute_command();
+  let hit_points = 100;
+  loop {
+    println!("{}", game.get_player_cavern());
+    println!("Health: {} arrows: {}", hit_points, game.get_quiver());
+    game.make_rest_command();
+    println!(">");
+    let mut command = String::new();
+    match io::stdin().read_line(&mut command) {
+      Ok(_) => match &*command.to_lowercase() {
+        "e" => game.make_move_command(Direction::East),
+        "w" => game.make_move_command(Direction::West),
+        "n" => game.make_move_command(Direction::North),
+        "s" => game.make_move_command(Direction::South),
+        "se" => game.make_shoot_command(Direction::East),
+        "sw" => game.make_shoot_command(Direction::West),
+        "sn" => game.make_shoot_command(Direction::North),
+        "ss" => game.make_shoot_command(Direction::South),
+        "q" => process::exit(0),
+        _ => game.make_rest_command(),
+      },
+      Err(error) => println!("error: {}", error),
+    }
+    game.execute_command();
+  }
+}
+
+fn create_caverns() -> HashSet<String> {
+  let mut caverns = HashSet::new();
+  let mut n_caverns = rand::thread_rng().gen_range(0..=30) + 10;
+  while n_caverns > 0 {
+    caverns.insert(make_name());
+    n_caverns -= 1;
+  }
+  caverns
+}
+
+fn make_name() -> String {
+  let environments = vec![
+    "bright", "humid", "dry", "creepy", "ugly", "foggy", "hot", "cold", "drafty", "dreadful",
+  ];
+
+  let shapes = vec![
+    "round",
+    "square",
+    "oval",
+    "irregular",
+    "long",
+    "craggy",
+    "rough",
+    "tall",
+    "narrow",
+  ];
+
+  let cavern_types = vec![
+    "cavern",
+    "room",
+    "chamber",
+    "catacomb",
+    "crevasse",
+    "cell",
+    "tunnel",
+    "passageway",
+    "hall",
+    "expanse",
+  ];
+
+  let adornments = vec![
+    "smelling of sulphur",
+    "with engravings on the walls",
+    "with a bumpy floor",
+    "",
+    "littered with garbage",
+    "spattered with guano",
+    "with piles of Wumpus droppings",
+    "with bones scattered around",
+    "with a corpse on the floor",
+    "that seems to vibrate",
+    "that feels stuffy",
+    "that fills you with dread",
+  ];
+
+  String::from("A ")
+    + choose_name(environments)
+    + " "
+    + choose_name(shapes)
+    + " "
+    + choose_name(cavern_types)
+    + " "
+    + choose_name(adornments)
+}
+
+fn choose_name(names: Vec<&str>) -> &str {
+  let n = names.len();
+  let choice = rand::thread_rng().gen_range(0..n);
+  names[choice]
+}
+
+fn set_special_caverns(game: &mut Box<dyn HuntTheWumpus>) {
+  let player_cavern = game.any_cavern();
+  game.set_player_cavern(&player_cavern);
+  game.set_wumpus_cavern(&game.any_other(&player_cavern));
+  game.add_bat_cavern(&game.any_other(&player_cavern));
+  game.add_bat_cavern(&game.any_other(&player_cavern));
+  game.add_bat_cavern(&game.any_other(&player_cavern));
+
+  game.add_pit_cavern(&game.any_other(&player_cavern));
+  game.add_pit_cavern(&game.any_other(&player_cavern));
+  game.add_pit_cavern(&game.any_other(&player_cavern));
 }
