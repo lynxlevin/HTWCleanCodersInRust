@@ -21,11 +21,12 @@ fn main() {
   loop {
     println!("{}", game.get_player_cavern());
     println!("Health: {} arrows: {}", hit_points, game.get_quiver());
+    println!("game.make_rest_command");
     game.make_rest_command();
     println!(">");
     let mut command = String::new();
     match io::stdin().read_line(&mut command) {
-      Ok(_) => match &*command.to_lowercase() {
+      Ok(_) => match &*command.trim().to_lowercase() {
         "e" => game.make_move_command(Direction::East),
         "w" => game.make_move_command(Direction::West),
         "n" => game.make_move_command(Direction::North),
@@ -39,6 +40,7 @@ fn main() {
       },
       Err(error) => println!("error: {}", error),
     }
+    println!("game.execute_command");
     game.execute_command();
   }
 }
