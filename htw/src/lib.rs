@@ -276,7 +276,7 @@ impl HuntTheWumpusGame {
     }
 
     fn hit(&mut self, points: u32) {
-        self.hit_points -= points;
+        self.hit_points = self.hit_points.saturating_sub(points);
         if self.hit_points <= 0 {
             println!("You have died of your wounds.");
             process::exit(0);
