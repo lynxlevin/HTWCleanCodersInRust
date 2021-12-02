@@ -361,6 +361,14 @@ impl HuntTheWumpus for HuntTheWumpusGame {
                             .push(Connection::new(cavern, &other, direction)),
                         _ => (),
                     }
+                    match self.find_destination(&other, &direction.opposite()) {
+                        None => self.connections.push(Connection::new(
+                            &other,
+                            cavern,
+                            &direction.opposite(),
+                        )),
+                        _ => (),
+                    }
                 }
             }
         }
