@@ -91,7 +91,7 @@ impl HtwMessageReceiver for EnglishHtwMessageReceiver {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
     North,
     South,
@@ -268,7 +268,7 @@ impl HuntTheWumpusGame {
 
     fn find_destination(&self, cavern: &str, direction: &Direction) -> Option<String> {
         for c in &self.connections {
-            if c.from == cavern && c.direction.name() == direction.name() {
+            if c.from == cavern && &c.direction == direction {
                 return Some(c.to.to_string());
             }
         }
@@ -536,7 +536,7 @@ impl MoveCommand {
         connections: &Vec<Connection>,
     ) -> Option<String> {
         for c in connections {
-            if &c.from == cavern && c.direction.name() == direction.name() {
+            if &c.from == cavern && &c.direction == direction {
                 return Some(c.to.to_string());
             }
         }
@@ -683,7 +683,7 @@ impl ArrowTracker {
         connections: &Vec<Connection>,
     ) -> Option<String> {
         for c in connections {
-            if cavern == c.from && direction.name() == c.direction.name() {
+            if cavern == c.from && direction == &c.direction {
                 return Some(c.to.to_string());
             }
         }
