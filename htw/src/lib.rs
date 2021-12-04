@@ -119,6 +119,59 @@ impl Direction {
     }
 }
 
+#[cfg(test)]
+mod tests_for_direction {
+    use super::*;
+
+    #[test]
+    fn name_of_north() {
+        let north = Direction::North;
+        assert_eq!("North", north.name());
+    }
+
+    #[test]
+    fn name_of_south() {
+        let south = Direction::South;
+        assert_eq!("South", south.name());
+    }
+
+    #[test]
+    fn name_of_east() {
+        let east = Direction::East;
+        assert_eq!("East", east.name());
+    }
+
+    #[test]
+    fn name_of_west() {
+        let west = Direction::West;
+        assert_eq!("West", west.name());
+    }
+
+    #[test]
+    fn opposite_of_north() {
+        let north = Direction::North;
+        assert_eq!(Direction::South, north.opposite());
+    }
+
+    #[test]
+    fn opposite_of_south() {
+        let south = Direction::South;
+        assert_eq!(Direction::North, south.opposite());
+    }
+
+    #[test]
+    fn opposite_of_east() {
+        let east = Direction::East;
+        assert_eq!(Direction::West, east.opposite());
+    }
+
+    #[test]
+    fn opposite_of_west() {
+        let west = Direction::West;
+        assert_eq!(Direction::East, west.opposite());
+    }
+}
+
 pub trait HuntTheWumpus {
     fn set_player_cavern(&mut self, player_cavern: &str);
     fn get_player_cavern(&self) -> &str;
