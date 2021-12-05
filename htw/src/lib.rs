@@ -826,6 +826,189 @@ impl Command for MoveCommand {
     }
 }
 
+#[cfg(test)]
+mod tests_for_move_command {
+    use super::*;
+
+    fn set_up_command() -> MoveCommand {
+        let direction = Direction::North;
+        MoveCommand { direction }
+    }
+
+    fn set_up_caverns() -> HashSet<String> {
+        let caverns = HashSet::from([
+            String::from("cavern"),
+            String::from("cavern_w"),
+            String::from("cavern_e"),
+            String::from("cavern_n"),
+            String::from("cavern_s"),
+            String::from("cavern_nn"),
+        ]);
+        caverns
+    }
+
+    fn set_up_message_receiver() -> Box<dyn HtwMessageReceiver> {
+        let message_receiver =
+            Box::new(EnglishHtwMessageReceiver {}) as Box<dyn HtwMessageReceiver>;
+        message_receiver
+    }
+
+    fn set_up_for_get_arrows() -> (HashMap<String, u32>, MoveCommand) {
+        let arrows_in = HashMap::from([(String::from("cavern_n"), 5)]);
+        let command = set_up_command();
+        (arrows_in, command)
+    }
+
+    fn set_up_for_check_for_bats() -> (
+        Box<dyn HtwMessageReceiver>,
+        HashSet<String>,
+        HashSet<String>,
+        MoveCommand,
+    ) {
+        let message_receiver = set_up_message_receiver();
+        let bat_caverns = HashSet::from([String::from("cavern_n")]);
+        let caverns = set_up_caverns();
+        let command = set_up_command();
+        (message_receiver, bat_caverns, caverns, command)
+    }
+
+    fn set_up_for_check_for_arrows() -> (
+        Box<dyn HtwMessageReceiver>,
+        HashMap<String, u32>,
+        u32,
+        MoveCommand,
+    ) {
+        let message_receiver = set_up_message_receiver();
+        let arrows_in = HashMap::from([(String::from("cavern_n"), 5)]);
+        let quiver = 5;
+        let command = set_up_command();
+        (message_receiver, arrows_in, quiver, command)
+    }
+
+    fn set_up_for_check_for_pit() -> (Box<dyn HtwMessageReceiver>, HashSet<String>, MoveCommand) {
+        let message_receiver = set_up_message_receiver();
+        let pit_caverns = HashSet::from([String::from("cavern_n"), String::from("cavern_nn")]);
+        let command = set_up_command();
+        (message_receiver, pit_caverns, command)
+    }
+
+    fn set_up_for_find_destination() -> (Vec<Connection>, MoveCommand) {
+        let connections = vec![
+            Connection::new("cavern", "cavern_n", &Direction::North),
+            Connection::new("cavern_n", "cavern", &Direction::South),
+        ];
+        let command = set_up_command();
+        (connections, command)
+    }
+
+    #[test]
+    fn test_check_for_pit_no_pit() {
+        let (message_receiver, pit_caverns, command) = set_up_for_check_for_pit();
+        let player_cavern = String::from("cavern");
+        assert_eq!(
+            None,
+            command.check_for_pit(&message_receiver, &player_cavern, &pit_caverns)
+        );
+    }
+
+    #[test]
+    fn test_check_for_pit_pit_exists() {
+        let (message_receiver, pit_caverns, command) = set_up_for_check_for_pit();
+        let player_cavern = String::from("cavern_n");
+        assert_eq!(
+            Some(4),
+            command.check_for_pit(&message_receiver, &player_cavern, &pit_caverns)
+        );
+    }
+
+    #[test]
+    fn test_randomly_transport_player() {
+        let player_cavern = String::from("cavern");
+        let caverns = set_up_caverns();
+        let command = set_up_command();
+        let result = command.randomly_transport_player(&caverns, &player_cavern);
+        assert_ne!(String::from("cavern"), result);
+    }
+
+    #[test]
+    fn test_check_for_bats_no_bats() {
+        let (message_receiver, bat_caverns, caverns, command) = set_up_for_check_for_bats();
+        let player_cavern = String::from("cavern");
+        let result =
+            command.check_for_bats(&message_receiver, &caverns, &player_cavern, &bat_caverns);
+        assert_eq!(None, result);
+    }
+
+    #[test]
+    fn test_check_for_bats_bat_exists() {
+        let (message_receiver, bat_caverns, caverns, command) = set_up_for_check_for_bats();
+        let player_cavern = String::from("cavern_n");
+        let result =
+            command.check_for_bats(&message_receiver, &caverns, &player_cavern, &bat_caverns);
+        assert_ne!(None, result);
+        assert_ne!(Some(String::from("cavern_n")), result);
+    }
+
+    #[test]
+    fn test_get_arrows_in_cavern_no_arrows() {
+        let (arrows_in, command) = set_up_for_get_arrows();
+        let cavern = String::from("cavern");
+        let result = command.get_arrows_in_cavern(&arrows_in, &cavern);
+        assert_eq!(0, result);
+    }
+
+    #[test]
+    fn test_get_arrows_in_cavern_5_arrows() {
+        let (arrows_in, command) = set_up_for_get_arrows();
+        let cavern = String::from("cavern_n");
+        let result = command.get_arrows_in_cavern(&arrows_in, &cavern);
+        assert_eq!(5, result);
+    }
+
+    #[test]
+    fn test_check_for_arrows_no_arrows() {
+        let player_cavern = String::from("cavern");
+        let (message_receiver, arrows_in, quiver, command) = set_up_for_check_for_arrows();
+        let result =
+            command.check_for_arrows(&message_receiver, &player_cavern, quiver, &arrows_in);
+        assert_eq!(
+            (None, Some(HashMap::from([(String::from("cavern"), 0)]))),
+            result
+        );
+    }
+
+    #[test]
+    fn test_check_for_arrows_5_arrows() {
+        let player_cavern = String::from("cavern_n");
+        let (message_receiver, arrows_in, quiver, command) = set_up_for_check_for_arrows();
+        let result =
+            command.check_for_arrows(&message_receiver, &player_cavern, quiver, &arrows_in);
+        assert_eq!(
+            (
+                Some(10),
+                Some(HashMap::from([(String::from("cavern_n"), 0)]))
+            ),
+            result
+        );
+    }
+
+    #[test]
+    fn test_for_find_destination_not_found() {
+        let (connections, command) = set_up_for_find_destination();
+        let cavern = String::from("cavern_n");
+        let result = command.find_destination(&cavern, &command.direction, &connections);
+        assert_eq!(None, result);
+    }
+
+    #[test]
+    fn test_for_find_destination_found() {
+        let (connections, command) = set_up_for_find_destination();
+        let cavern = String::from("cavern");
+        let result = command.find_destination(&cavern, &command.direction, &connections);
+        assert_eq!(Some(String::from("cavern_n")), result);
+    }
+}
+
 struct ShootCommand {
     direction: Direction,
 }
