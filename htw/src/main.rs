@@ -1,6 +1,5 @@
 use htw::Direction;
 use htw::EnglishHtwMessageReceiver;
-use htw::HtwMessageReceiver;
 use htw::HuntTheWumpus;
 use htw::HuntTheWumpusGame;
 use rand::Rng;

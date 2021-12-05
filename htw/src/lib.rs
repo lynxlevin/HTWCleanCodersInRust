@@ -790,10 +790,7 @@ impl Command for ShootCommand {
         } else {
             message_receiver.arrow_shot();
             let new_quiver = Some(quiver - 1);
-            let mut arrow_tracker = ArrowTracker {
-                hit_something: false,
-                arrow_cavern: player_cavern.to_string(),
-            };
+            let mut arrow_tracker = ArrowTracker::new(player_cavern.to_string());
             let self_damage = arrow_tracker.track_arrow(
                 &self.direction,
                 message_receiver,
