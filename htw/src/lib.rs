@@ -476,6 +476,109 @@ impl HuntTheWumpus for HuntTheWumpusGame {
     }
 }
 
+#[cfg(test)]
+mod tests_for_hunt_the_wumpus_game {
+    use super::*;
+
+    fn set_up() -> HuntTheWumpusGame {
+        // TODO: mock message_receiver
+        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
+        let caverns = HashSet::from([
+            String::from("cavern"),
+            String::from("cavern_w"),
+            String::from("cavern_e"),
+            String::from("cavern_n"),
+            String::from("cavern_s"),
+            String::from("cavern_nn"),
+        ]);
+        let connections = vec![
+            Connection::new("cavern", "cavern_w", &Direction::West),
+            Connection::new("cavern_w", "cavern", &Direction::East),
+            Connection::new("cavern", "cavern_e", &Direction::East),
+            Connection::new("cavern_e", "cavern", &Direction::West),
+            Connection::new("cavern", "cavern_n", &Direction::North),
+            Connection::new("cavern_n", "cavern", &Direction::South),
+            Connection::new("cavern", "cavern_s", &Direction::South),
+            Connection::new("cavern_s", "cavern", &Direction::North),
+            Connection::new("cavern_n", "cavern_nn", &Direction::North),
+            Connection::new("cavern_nn", "cavern_n", &Direction::South),
+        ];
+        let player_cavern = String::from("cavern");
+        let bat_caverns = HashSet::from([String::from("cavern_e")]);
+        let pit_caverns = HashSet::from([String::from("cavern_s")]);
+        let wumpus_cavern = String::from("cavern_w");
+        let quiver = 5;
+        let arrows_in = HashMap::new();
+        let command = Box::new(RestCommand {});
+        let hit_points = 10;
+        HuntTheWumpusGame {
+            message_receiver,
+            caverns,
+            connections,
+            player_cavern,
+            bat_caverns,
+            pit_caverns,
+            wumpus_cavern,
+            quiver,
+            arrows_in,
+            command,
+            hit_points,
+        }
+    }
+
+    #[test]
+    fn test_report_nearby_true() {
+        let game = set_up();
+        let test_caverns = HashSet::from([String::from("cavern_e")]);
+        assert_eq!(game.report_nearby(&test_caverns), true);
+    }
+
+    #[test]
+    fn test_report_nearby_false() {
+        let game = set_up();
+        let test_caverns = HashSet::from([String::from("cavern_nn")]);
+        assert_eq!(game.report_nearby(&test_caverns), false);
+    }
+
+    #[test]
+    fn test_move_wumpus() {
+        let mut game = set_up();
+        // TODO: find a better way
+        while &game.wumpus_cavern == "cavern_w" {
+            game.move_wumpus();
+        }
+        assert_ne!(&game.wumpus_cavern, "cavern_w");
+    }
+
+    #[test]
+    fn test_find_destination_some() {
+        let game = set_up();
+        let result = game.find_destination(&game.player_cavern, &Direction::South);
+        assert_eq!(result, Some(String::from("cavern_s")));
+    }
+
+    #[test]
+    fn test_find_destination_none() {
+        let game = set_up();
+        let result = game.find_destination("cavern_s", &Direction::South);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_hit() {
+        let mut game = set_up();
+        game.hit(3);
+        assert_eq!(7, game.hit_points);
+    }
+
+    #[test]
+    fn test_hit_over_kill() {
+        let mut game = set_up();
+        game.hit(12);
+        assert_eq!(0, game.hit_points);
+    }
+}
+
 struct RestCommand {}
 impl Command for RestCommand {
     fn process_command(
