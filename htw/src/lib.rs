@@ -1073,6 +1073,41 @@ impl Command for ShootCommand {
     }
 }
 
+#[cfg(test)]
+mod tests_for_shoot_command {
+    use super::*;
+    fn set_up() -> (ShootCommand, HashMap<String, u32>) {
+        let direction = Direction::North;
+        let command = ShootCommand { direction };
+        let arrows_in = HashMap::from([(String::from("cavern_n"), 5)]);
+        (command, arrows_in)
+    }
+
+    #[test]
+    fn test_get_arrows_in_cavern_none() {
+        let (command, arrows_in) = set_up();
+        let cavern = String::from("cavern_s");
+        let result = command.get_arrows_in_cavern(&arrows_in, &cavern);
+        assert_eq!(0, result);
+    }
+
+    #[test]
+    fn test_get_arrows_in_cavern_some() {
+        let (command, arrows_in) = set_up();
+        let cavern = String::from("cavern_n");
+        let result = command.get_arrows_in_cavern(&arrows_in, &cavern);
+        assert_eq!(5, result);
+    }
+
+    #[test]
+    fn test_increment_arrows_in_cavern() {
+        let (command, arrows_in) = set_up();
+        let arrow_cavern = String::from("cavern_n");
+        let result = command.increment_arrows_in_cavern(&arrows_in, &arrow_cavern);
+        assert_eq!(Some(HashMap::from([(String::from("cavern_n"), 6)])), result);
+    }
+}
+
 struct ArrowTracker {
     hit_something: bool,
     arrow_cavern: String,
