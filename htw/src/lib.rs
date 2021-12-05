@@ -567,16 +567,97 @@ mod tests_for_hunt_the_wumpus_game {
     #[test]
     fn test_hit() {
         let mut game = set_up();
+        assert_eq!(10, game.hit_points);
         game.hit(3);
         assert_eq!(7, game.hit_points);
     }
 
     #[test]
-    fn test_hit_over_kill() {
+    fn test_set_player_cavern() {
         let mut game = set_up();
-        game.hit(12);
-        assert_eq!(0, game.hit_points);
+        assert_ne!(&game.player_cavern, "cavern_n");
+        game.set_player_cavern("cavern_n");
+        assert_eq!(&game.player_cavern, "cavern_n");
     }
+
+    #[test]
+    fn test_get_player_cavern() {
+        let game = set_up();
+        assert_eq!(game.get_player_cavern(), "cavern");
+    }
+
+    #[test]
+    fn test_add_bat_cavern() {
+        let mut game = set_up();
+        assert_eq!(game.bat_caverns, HashSet::from([String::from("cavern_e")]));
+        game.add_bat_cavern("cavern_nn");
+        assert_eq!(
+            game.bat_caverns,
+            HashSet::from([String::from("cavern_e"), String::from("cavern_nn")])
+        );
+    }
+
+    #[test]
+    fn test_add_pit_cavern() {
+        let mut game = set_up();
+        assert_eq!(game.pit_caverns, HashSet::from([String::from("cavern_s")]));
+        game.add_pit_cavern("cavern_nn");
+        assert_eq!(
+            game.pit_caverns,
+            HashSet::from([String::from("cavern_s"), String::from("cavern_nn")])
+        );
+    }
+
+    #[test]
+    fn test_set_wumpus_cavern() {
+        let mut game = set_up();
+        assert_eq!(&game.wumpus_cavern, "cavern_w");
+        game.set_wumpus_cavern("cavern_nn");
+        assert_eq!(&game.wumpus_cavern, "cavern_nn");
+    }
+
+    #[test]
+    fn test_get_wumpus_cavern() {
+        let game = set_up();
+        assert_eq!(game.get_wumpus_cavern(), &game.wumpus_cavern);
+    }
+
+    #[test]
+    fn test_set_quiver() {
+        let mut game = set_up();
+        assert_eq!(game.quiver, 5);
+        game.set_quiver(10);
+        assert_eq!(game.quiver, 10);
+    }
+
+    #[test]
+    fn test_get_quiver() {
+        let game = set_up();
+        assert_eq!(game.get_quiver(), game.quiver);
+    }
+
+    #[test]
+    fn test_get_hit_points() {
+        let game = set_up();
+        assert_eq!(game.get_hit_points(), game.hit_points);
+    }
+
+    #[test]
+    fn test_any_other() {
+        let game = set_up();
+        assert_ne!("cavern", game.any_other("cavern"));
+    }
+
+    #[test]
+    fn test_any_cavern() {
+        let game = set_up();
+        let result = game.any_cavern();
+        assert!(game.caverns.contains(&result));
+    }
+
+    //TODO: write test for connect_caverns, should it be smaller?
+    //TODO: is it possible to test execute_command?
+    //TODO: to test make_commands, Command needs to impl Debug, is it wise to do so?
 }
 
 struct RestCommand {}
