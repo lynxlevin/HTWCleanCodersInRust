@@ -1,3 +1,4 @@
+use htw::Caverns;
 use htw::Direction;
 use htw::EnglishHtwMessageReceiver;
 use htw::HuntTheWumpus;
@@ -46,7 +47,7 @@ fn main() {
   }
 }
 
-fn create_caverns() -> HashSet<String> {
+fn create_caverns() -> Caverns {
   let mut caverns = HashSet::new();
   let mut n_caverns = rand::thread_rng().gen_range(0..=30) + 10;
   while n_caverns > 0 {

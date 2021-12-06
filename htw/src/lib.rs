@@ -198,20 +198,15 @@ trait Command {
     fn process_command(
         &self,
         message_receiver: &Box<dyn HtwMessageReceiver>,
-        connections: &Vec<Connection>,
-        caverns: &HashSet<String>,
+        connections: &Connections,
+        caverns: &Caverns,
         player_cavern: &String,
         wumpus_cavern: &String,
-        pit_caverns: &HashSet<String>,
-        bat_caverns: &HashSet<String>,
+        pit_caverns: &PitCaverns,
+        bat_caverns: &BatCaverns,
         quiver: u32,
-        arrows_in: &HashMap<String, u32>,
-    ) -> (
-        Option<String>,
-        Option<u32>,
-        Option<HashMap<String, u32>>,
-        Option<u32>,
-    );
+        arrows_in: &ArrowsIn,
+    ) -> (Option<String>, Option<u32>, Option<ArrowsIn>, Option<u32>);
 }
 
 // HuntTheWumpusGame.java
@@ -231,16 +226,22 @@ impl Connection {
     }
 }
 
+type Connections = Vec<Connection>;
+pub type Caverns = HashSet<String>;
+type BatCaverns = HashSet<String>;
+type PitCaverns = HashSet<String>;
+type ArrowsIn = HashMap<String, u32>;
+
 pub struct HuntTheWumpusGame {
-    connections: Vec<Connection>,
-    caverns: HashSet<String>,
+    connections: Connections,
+    caverns: Caverns,
     player_cavern: String,
     message_receiver: Box<dyn HtwMessageReceiver>,
-    bat_caverns: HashSet<String>,
-    pit_caverns: HashSet<String>,
+    bat_caverns: BatCaverns,
+    pit_caverns: PitCaverns,
     wumpus_cavern: String,
     quiver: u32,
-    arrows_in: HashMap<String, u32>,
+    arrows_in: ArrowsIn,
     command: Box<dyn Command>,
     hit_points: u32,
 }
@@ -248,7 +249,7 @@ pub struct HuntTheWumpusGame {
 impl HuntTheWumpusGame {
     pub fn new(
         message_receiver: Box<dyn HtwMessageReceiver>,
-        caverns: HashSet<String>,
+        caverns: Caverns,
     ) -> Box<dyn HuntTheWumpus> {
         Box::new(HuntTheWumpusGame {
             connections: vec![],
@@ -280,7 +281,7 @@ impl HuntTheWumpusGame {
 
     // TODO: see if report_neaby could be implemented using predicate
     // this is a work-around without predicate
-    fn report_nearby(&self, test_caverns: &HashSet<String>) -> bool {
+    fn report_nearby(&self, test_caverns: &Caverns) -> bool {
         for c in &self.connections {
             if c.from == self.player_cavern && test_caverns.contains(&String::from(&c.to)) {
                 return true;
@@ -665,20 +666,15 @@ impl Command for RestCommand {
     fn process_command(
         &self,
         _message_receiver: &Box<dyn HtwMessageReceiver>,
-        _connections: &Vec<Connection>,
-        _caverns: &HashSet<String>,
+        _connections: &Connections,
+        _caverns: &Caverns,
         _player_cavern: &String,
         _wumpus_cavern: &String,
-        _pit_caverns: &HashSet<String>,
-        _bat_caverns: &HashSet<String>,
+        _pit_caverns: &PitCaverns,
+        _bat_caverns: &BatCaverns,
         _quiver: u32,
-        _arrows_in: &HashMap<String, u32>,
-    ) -> (
-        Option<String>,
-        Option<u32>,
-        Option<HashMap<String, u32>>,
-        Option<u32>,
-    ) {
+        _arrows_in: &ArrowsIn,
+    ) -> (Option<String>, Option<u32>, Option<ArrowsIn>, Option<u32>) {
         (None, None, None, None)
     }
 }
@@ -702,7 +698,7 @@ impl MoveCommand {
         &self,
         message_receiver: &Box<dyn HtwMessageReceiver>,
         player_cavern: &String,
-        pit_caverns: &HashSet<String>,
+        pit_caverns: &PitCaverns,
     ) -> Option<u32> {
         let mut self_damage = None;
         if pit_caverns.contains(player_cavern) {
@@ -712,11 +708,7 @@ impl MoveCommand {
         self_damage
     }
 
-    fn randomly_transport_player(
-        &self,
-        caverns: &HashSet<String>,
-        player_cavern: &String,
-    ) -> String {
+    fn randomly_transport_player(&self, caverns: &Caverns, player_cavern: &String) -> String {
         let mut transport_choices = HashSet::new();
         transport_choices.extend(caverns);
         transport_choices.remove(&player_cavern);
@@ -728,9 +720,9 @@ impl MoveCommand {
     fn check_for_bats(
         &self,
         message_receiver: &Box<dyn HtwMessageReceiver>,
-        caverns: &HashSet<String>,
+        caverns: &Caverns,
         player_cavern: &String,
-        bat_caverns: &HashSet<String>,
+        bat_caverns: &BatCaverns,
     ) -> Option<String> {
         if bat_caverns.contains(player_cavern) {
             message_receiver.bats_transport();
@@ -741,7 +733,7 @@ impl MoveCommand {
         }
     }
 
-    fn get_arrows_in_cavern(&self, arrows_in: &HashMap<String, u32>, cavern: &String) -> u32 {
+    fn get_arrows_in_cavern(&self, arrows_in: &ArrowsIn, cavern: &String) -> u32 {
         match arrows_in.get(cavern) {
             Some(&number) => number,
             None => 0,
@@ -753,8 +745,8 @@ impl MoveCommand {
         message_receiver: &Box<dyn HtwMessageReceiver>,
         player_cavern: &String,
         quiver: u32,
-        arrows_in: &HashMap<String, u32>,
-    ) -> (Option<u32>, Option<HashMap<String, u32>>) {
+        arrows_in: &ArrowsIn,
+    ) -> (Option<u32>, Option<ArrowsIn>) {
         let arrows_found = self.get_arrows_in_cavern(arrows_in, player_cavern);
         let mut new_quiver = None;
         if arrows_found > 0 {
@@ -770,7 +762,7 @@ impl MoveCommand {
         &self,
         cavern: &String,
         direction: &Direction,
-        connections: &Vec<Connection>,
+        connections: &Connections,
     ) -> Option<String> {
         for c in connections {
             if &c.from == cavern && &c.direction == direction {
@@ -784,20 +776,15 @@ impl Command for MoveCommand {
     fn process_command(
         &self,
         message_receiver: &Box<dyn HtwMessageReceiver>,
-        connections: &Vec<Connection>,
-        caverns: &HashSet<String>,
+        connections: &Connections,
+        caverns: &Caverns,
         player_cavern: &String,
         wumpus_cavern: &String,
-        pit_caverns: &HashSet<String>,
-        bat_caverns: &HashSet<String>,
+        pit_caverns: &PitCaverns,
+        bat_caverns: &BatCaverns,
         quiver: u32,
-        arrows_in: &HashMap<String, u32>,
-    ) -> (
-        Option<String>,
-        Option<u32>,
-        Option<HashMap<String, u32>>,
-        Option<u32>,
-    ) {
+        arrows_in: &ArrowsIn,
+    ) -> (Option<String>, Option<u32>, Option<ArrowsIn>, Option<u32>) {
         match self.find_destination(player_cavern, &self.direction, connections) {
             Some(s) => {
                 let new_player_cavern = s;
@@ -835,7 +822,21 @@ mod tests_for_move_command {
         MoveCommand { direction }
     }
 
-    fn set_up_caverns() -> HashSet<String> {
+    fn set_up() -> (
+        Box<dyn HtwMessageReceiver>,
+        Connections,
+        Caverns,
+        BatCaverns,
+        PitCaverns,
+        ArrowsIn,
+        u32,
+        MoveCommand,
+    ) {
+        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
+        let connections = vec![
+            Connection::new("cavern", "cavern_n", &Direction::North),
+            Connection::new("cavern_n", "cavern", &Direction::South),
+        ];
         let caverns = HashSet::from([
             String::from("cavern"),
             String::from("cavern_w"),
@@ -844,60 +845,26 @@ mod tests_for_move_command {
             String::from("cavern_s"),
             String::from("cavern_nn"),
         ]);
-        caverns
-    }
-
-    fn set_up_for_get_arrows() -> (HashMap<String, u32>, MoveCommand) {
-        let arrows_in = HashMap::from([(String::from("cavern_n"), 5)]);
-        let command = set_up_command();
-        (arrows_in, command)
-    }
-
-    fn set_up_for_check_for_bats() -> (
-        Box<dyn HtwMessageReceiver>,
-        HashSet<String>,
-        HashSet<String>,
-        MoveCommand,
-    ) {
-        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
         let bat_caverns = HashSet::from([String::from("cavern_n")]);
-        let caverns = set_up_caverns();
-        let command = set_up_command();
-        (message_receiver, bat_caverns, caverns, command)
-    }
-
-    fn set_up_for_check_for_arrows() -> (
-        Box<dyn HtwMessageReceiver>,
-        HashMap<String, u32>,
-        u32,
-        MoveCommand,
-    ) {
-        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
+        let pit_caverns = HashSet::from([String::from("cavern_n"), String::from("cavern_nn")]);
         let arrows_in = HashMap::from([(String::from("cavern_n"), 5)]);
         let quiver = 5;
         let command = set_up_command();
-        (message_receiver, arrows_in, quiver, command)
-    }
-
-    fn set_up_for_check_for_pit() -> (Box<dyn HtwMessageReceiver>, HashSet<String>, MoveCommand) {
-        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
-        let pit_caverns = HashSet::from([String::from("cavern_n"), String::from("cavern_nn")]);
-        let command = set_up_command();
-        (message_receiver, pit_caverns, command)
-    }
-
-    fn set_up_for_find_destination() -> (Vec<Connection>, MoveCommand) {
-        let connections = vec![
-            Connection::new("cavern", "cavern_n", &Direction::North),
-            Connection::new("cavern_n", "cavern", &Direction::South),
-        ];
-        let command = set_up_command();
-        (connections, command)
+        (
+            message_receiver,
+            connections,
+            caverns,
+            bat_caverns,
+            pit_caverns,
+            arrows_in,
+            quiver,
+            command,
+        )
     }
 
     #[test]
     fn test_check_for_pit_no_pit() {
-        let (message_receiver, pit_caverns, command) = set_up_for_check_for_pit();
+        let (message_receiver, _, _, _, pit_caverns, _, _, command) = set_up();
         let player_cavern = String::from("cavern");
         assert_eq!(
             None,
@@ -907,7 +874,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_check_for_pit_pit_exists() {
-        let (message_receiver, pit_caverns, command) = set_up_for_check_for_pit();
+        let (message_receiver, _, _, _, pit_caverns, _, _, command) = set_up();
         let player_cavern = String::from("cavern_n");
         assert_eq!(
             Some(4),
@@ -918,15 +885,14 @@ mod tests_for_move_command {
     #[test]
     fn test_randomly_transport_player() {
         let player_cavern = String::from("cavern");
-        let caverns = set_up_caverns();
-        let command = set_up_command();
+        let (_, _, caverns, _, _, _, _, command) = set_up();
         let result = command.randomly_transport_player(&caverns, &player_cavern);
         assert_ne!(String::from("cavern"), result);
     }
 
     #[test]
     fn test_check_for_bats_no_bats() {
-        let (message_receiver, bat_caverns, caverns, command) = set_up_for_check_for_bats();
+        let (message_receiver, _, caverns, bat_caverns, _, _, _, command) = set_up();
         let player_cavern = String::from("cavern");
         let result =
             command.check_for_bats(&message_receiver, &caverns, &player_cavern, &bat_caverns);
@@ -935,7 +901,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_check_for_bats_bat_exists() {
-        let (message_receiver, bat_caverns, caverns, command) = set_up_for_check_for_bats();
+        let (message_receiver, _, caverns, bat_caverns, _, _, _, command) = set_up();
         let player_cavern = String::from("cavern_n");
         let result =
             command.check_for_bats(&message_receiver, &caverns, &player_cavern, &bat_caverns);
@@ -945,7 +911,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_get_arrows_in_cavern_no_arrows() {
-        let (arrows_in, command) = set_up_for_get_arrows();
+        let (_, _, _, _, _, arrows_in, _, command) = set_up();
         let cavern = String::from("cavern");
         let result = command.get_arrows_in_cavern(&arrows_in, &cavern);
         assert_eq!(0, result);
@@ -953,7 +919,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_get_arrows_in_cavern_5_arrows() {
-        let (arrows_in, command) = set_up_for_get_arrows();
+        let (_, _, _, _, _, arrows_in, _, command) = set_up();
         let cavern = String::from("cavern_n");
         let result = command.get_arrows_in_cavern(&arrows_in, &cavern);
         assert_eq!(5, result);
@@ -962,7 +928,7 @@ mod tests_for_move_command {
     #[test]
     fn test_check_for_arrows_no_arrows() {
         let player_cavern = String::from("cavern");
-        let (message_receiver, arrows_in, quiver, command) = set_up_for_check_for_arrows();
+        let (message_receiver, _, _, _, _, arrows_in, quiver, command) = set_up();
         let result =
             command.check_for_arrows(&message_receiver, &player_cavern, quiver, &arrows_in);
         assert_eq!(
@@ -974,7 +940,7 @@ mod tests_for_move_command {
     #[test]
     fn test_check_for_arrows_5_arrows() {
         let player_cavern = String::from("cavern_n");
-        let (message_receiver, arrows_in, quiver, command) = set_up_for_check_for_arrows();
+        let (message_receiver, _, _, _, _, arrows_in, quiver, command) = set_up();
         let result =
             command.check_for_arrows(&message_receiver, &player_cavern, quiver, &arrows_in);
         assert_eq!(
@@ -988,7 +954,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_for_find_destination_not_found() {
-        let (connections, command) = set_up_for_find_destination();
+        let (_, connections, _, _, _, _, _, command) = set_up();
         let cavern = String::from("cavern_n");
         let result = command.find_destination(&cavern, &command.direction, &connections);
         assert_eq!(None, result);
@@ -996,7 +962,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_for_find_destination_found() {
-        let (connections, command) = set_up_for_find_destination();
+        let (_, connections, _, _, _, _, _, command) = set_up();
         let cavern = String::from("cavern");
         let result = command.find_destination(&cavern, &command.direction, &connections);
         assert_eq!(Some(String::from("cavern_n")), result);
@@ -1007,7 +973,7 @@ struct ShootCommand {
     direction: Direction,
 }
 impl ShootCommand {
-    fn get_arrows_in_cavern(&self, arrows_in: &HashMap<String, u32>, cavern: &String) -> u32 {
+    fn get_arrows_in_cavern(&self, arrows_in: &ArrowsIn, cavern: &String) -> u32 {
         match arrows_in.get(cavern) {
             Some(&number) => number,
             None => 0,
@@ -1016,9 +982,9 @@ impl ShootCommand {
 
     fn increment_arrows_in_cavern(
         &self,
-        arrows_in: &HashMap<String, u32>,
+        arrows_in: &ArrowsIn,
         arrow_cavern: &String,
-    ) -> Option<HashMap<String, u32>> {
+    ) -> Option<ArrowsIn> {
         let arrows = self.get_arrows_in_cavern(arrows_in, arrow_cavern);
         let update_arrows_in = Some(HashMap::from([(arrow_cavern.to_string(), arrows + 1)]));
         update_arrows_in
@@ -1028,20 +994,15 @@ impl Command for ShootCommand {
     fn process_command(
         &self,
         message_receiver: &Box<dyn HtwMessageReceiver>,
-        connections: &Vec<Connection>,
-        _caverns: &HashSet<String>,
+        connections: &Connections,
+        _caverns: &Caverns,
         player_cavern: &String,
         wumpus_cavern: &String,
-        _pit_caverns: &HashSet<String>,
-        _bat_caverns: &HashSet<String>,
+        _pit_caverns: &PitCaverns,
+        _bat_caverns: &BatCaverns,
         quiver: u32,
-        arrows_in: &HashMap<String, u32>,
-    ) -> (
-        Option<String>,
-        Option<u32>,
-        Option<HashMap<String, u32>>,
-        Option<u32>,
-    ) {
+        arrows_in: &ArrowsIn,
+    ) -> (Option<String>, Option<u32>, Option<ArrowsIn>, Option<u32>) {
         if quiver == 0 {
             message_receiver.no_arrows();
             return (None, None, None, None);
@@ -1070,7 +1031,7 @@ impl Command for ShootCommand {
 #[cfg(test)]
 mod tests_for_shoot_command {
     use super::*;
-    fn set_up() -> (ShootCommand, HashMap<String, u32>) {
+    fn set_up() -> (ShootCommand, ArrowsIn) {
         let direction = Direction::North;
         let command = ShootCommand { direction };
         let arrows_in = HashMap::from([(String::from("cavern_n"), 5)]);
@@ -1126,7 +1087,7 @@ impl ArrowTracker {
         &self,
         cavern: String,
         direction: &Direction,
-        connections: &Vec<Connection>,
+        connections: &Connections,
     ) -> Option<String> {
         for c in connections {
             if cavern == c.from && direction == &c.direction {
@@ -1168,7 +1129,7 @@ impl ArrowTracker {
         &mut self,
         direction: &Direction,
         message_receiver: &Box<dyn HtwMessageReceiver>,
-        connections: &Vec<Connection>,
+        connections: &Connections,
         player_cavern: &String,
         wumpus_cavern: &String,
     ) -> Option<u32> {
@@ -1210,7 +1171,7 @@ mod tests_for_arrow_tracker {
         ArrowTracker,
         Box<dyn HtwMessageReceiver>,
         Direction,
-        Vec<Connection>,
+        Connections,
     ) {
         let tracker = set_up_tracker();
         let message_receiver = Box::new(EnglishHtwMessageReceiver {});
