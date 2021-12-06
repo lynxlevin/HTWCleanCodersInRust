@@ -847,12 +847,6 @@ mod tests_for_move_command {
         caverns
     }
 
-    fn set_up_message_receiver() -> Box<dyn HtwMessageReceiver> {
-        let message_receiver =
-            Box::new(EnglishHtwMessageReceiver {}) as Box<dyn HtwMessageReceiver>;
-        message_receiver
-    }
-
     fn set_up_for_get_arrows() -> (HashMap<String, u32>, MoveCommand) {
         let arrows_in = HashMap::from([(String::from("cavern_n"), 5)]);
         let command = set_up_command();
@@ -865,7 +859,7 @@ mod tests_for_move_command {
         HashSet<String>,
         MoveCommand,
     ) {
-        let message_receiver = set_up_message_receiver();
+        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
         let bat_caverns = HashSet::from([String::from("cavern_n")]);
         let caverns = set_up_caverns();
         let command = set_up_command();
@@ -878,7 +872,7 @@ mod tests_for_move_command {
         u32,
         MoveCommand,
     ) {
-        let message_receiver = set_up_message_receiver();
+        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
         let arrows_in = HashMap::from([(String::from("cavern_n"), 5)]);
         let quiver = 5;
         let command = set_up_command();
@@ -886,7 +880,7 @@ mod tests_for_move_command {
     }
 
     fn set_up_for_check_for_pit() -> (Box<dyn HtwMessageReceiver>, HashSet<String>, MoveCommand) {
-        let message_receiver = set_up_message_receiver();
+        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
         let pit_caverns = HashSet::from([String::from("cavern_n"), String::from("cavern_nn")]);
         let command = set_up_command();
         (message_receiver, pit_caverns, command)
@@ -1197,12 +1191,163 @@ impl ArrowTracker {
             if count > 100 {
                 return None;
             };
-            if &self.arrow_cavern == player_cavern {
-                message_receiver.player_shoots_wall();
-                let self_damage = Some(3);
-                return self_damage;
-            }
         }
-        None
+        if &self.arrow_cavern == player_cavern {
+            message_receiver.player_shoots_wall();
+            let self_damage = Some(3);
+            self_damage
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_for_arrow_tracker {
+    use super::*;
+
+    fn set_up_tracker() -> ArrowTracker {
+        ArrowTracker::new(String::from("cavern"))
+    }
+
+    fn set_up() -> (
+        ArrowTracker,
+        Box<dyn HtwMessageReceiver>,
+        Direction,
+        Vec<Connection>,
+    ) {
+        let tracker = set_up_tracker();
+        let message_receiver = Box::new(EnglishHtwMessageReceiver {});
+        let direction = Direction::North;
+        let connections = vec![
+            Connection::new("cavern", "cavern_n", &Direction::North),
+            Connection::new("cavern_n", "cavern", &Direction::South),
+            Connection::new("cavern_n", "cavern_nn", &Direction::North),
+            Connection::new("cavern_nn", "cavern_n", &Direction::South),
+            Connection::new("cavern_nn", "cavern", &Direction::North),
+            Connection::new("cavern", "cavern_nn", &Direction::South),
+        ];
+        (tracker, message_receiver, direction, connections)
+    }
+
+    #[test]
+    fn test_new() {
+        let result = ArrowTracker::new(String::from("cavern"));
+        assert_eq!(result.hit_something, false);
+        assert_eq!(result.arrow_cavern, "cavern");
+    }
+
+    #[test]
+    fn test_arrow_hit_something() {
+        let tracker = set_up_tracker();
+        assert_eq!(tracker.hit_something, tracker.arrow_hit_something());
+    }
+
+    #[test]
+    fn test_get_arrow_cavern() {
+        let tracker = set_up_tracker();
+        assert_eq!(tracker.arrow_cavern, tracker.get_arrow_cavern());
+    }
+
+    #[test]
+    fn test_next_cavern_exists_not() {
+        let (tracker, _, direction, connections) = set_up();
+        let cavern = String::from("cavern_n");
+        let result = tracker.next_cavern(cavern, &direction, &connections);
+        assert_eq!(None, result);
+    }
+
+    #[test]
+    fn test_next_cavern_exists() {
+        let (tracker, _, direction, connections) = set_up();
+        let cavern = String::from("cavern");
+        let result = tracker.next_cavern(cavern, &direction, &connections);
+        assert_eq!(Some(String::from("cavern_n")), result);
+    }
+
+    #[test]
+    fn test_shot_self_in_back_false() {
+        let (mut tracker, message_receiver, _, _) = set_up();
+        assert_eq!(tracker.hit_something, false);
+        let player_cavern = String::from("cavern_n");
+        let result = tracker.shot_self_in_back(&message_receiver, &player_cavern);
+        assert_eq!(tracker.hit_something, false);
+        assert_eq!(result, false);
+    }
+
+    #[test]
+    fn test_shot_self_in_back_true() {
+        let (mut tracker, message_receiver, _, _) = set_up();
+        assert_eq!(tracker.hit_something, false);
+        let player_cavern = String::from("cavern");
+        let result = tracker.shot_self_in_back(&message_receiver, &player_cavern);
+        assert_eq!(tracker.hit_something, true);
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_shot_wumpus_false() {
+        let (mut tracker, message_receiver, _, _) = set_up();
+        let wumpus_cavern = String::from("cavern_n");
+        assert_eq!(tracker.hit_something, false);
+        let result = tracker.shot_wumpus(&message_receiver, &wumpus_cavern);
+        assert_eq!(tracker.hit_something, false);
+        assert_eq!(result, false);
+    }
+
+    #[test]
+    fn test_shot_wumpus_true() {
+        let (mut tracker, message_receiver, _, _) = set_up();
+        let wumpus_cavern = String::from("cavern");
+        assert_eq!(tracker.hit_something, false);
+        let result = tracker.shot_wumpus(&message_receiver, &wumpus_cavern);
+        assert_eq!(tracker.hit_something, true);
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_track_arrow_travels_over_100_caverns() {
+        let (mut tracker, message_receiver, direction, connections) = set_up();
+        let player_cavern = String::from("none");
+        let wumpus_cavern = String::from("none");
+        let result = tracker.track_arrow(
+            &direction,
+            &message_receiver,
+            &connections,
+            &player_cavern,
+            &wumpus_cavern,
+        );
+        assert_eq!(None, result);
+    }
+
+    #[test]
+    fn test_track_arrow_shoots_self() {
+        let (mut tracker, message_receiver, direction, connections) = set_up();
+        let player_cavern = String::from("cavern");
+        let wumpus_cavern = String::from("none");
+        let result = tracker.track_arrow(
+            &direction,
+            &message_receiver,
+            &connections,
+            &player_cavern,
+            &wumpus_cavern,
+        );
+        assert_eq!(Some(3), result);
+    }
+
+    #[test]
+    fn test_track_arrow_shoots_wall() {
+        let (mut tracker, message_receiver, _, connections) = set_up();
+        let direction = Direction::West;
+        let player_cavern = String::from("cavern");
+        let wumpus_cavern = String::from("none");
+        let result = tracker.track_arrow(
+            &direction,
+            &message_receiver,
+            &connections,
+            &player_cavern,
+            &wumpus_cavern,
+        );
+        assert_eq!(Some(3), result);
     }
 }
