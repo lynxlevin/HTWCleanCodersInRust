@@ -184,8 +184,6 @@ pub trait HuntTheWumpus {
     fn get_hit_points(&self) -> u32;
     fn any_other(&self, cavern: &str) -> String;
     fn any_cavern(&self) -> String;
-    fn maybe_connect_cavern(&mut self, cavern: &str, direction: Direction);
-    fn connect_cavern(&mut self, from: &str, to: &str, direction: &Direction);
     fn connect_caverns(&mut self);
     fn check_wumpus_moved_to_player(&self);
     fn execute_command(&mut self);
@@ -312,16 +310,12 @@ impl HuntTheWumpusGame {
         self.wumpus_cavern = String::from(wumpus_choices[choice]);
     }
 
-    // FIXME: not used
-    fn connect_if_available(&mut self, from: &str, to: &str, direction: &Direction) {
-        match self.find_destination(from, direction) {
-            None => self.connect_cavern(&from, &to, direction),
-            _ => (),
-        }
-    }
-
-    fn find_destination(&self, cavern: &str, direction: &Direction) -> Option<String> {
-        for c in &self.connections {
+    fn find_destination(
+        cavern: &str,
+        direction: &Direction,
+        connections: &Connections,
+    ) -> Option<String> {
+        for c in connections {
             if c.from == cavern && &c.direction == direction {
                 return Some(c.to.to_string());
             }
@@ -382,20 +376,6 @@ impl HuntTheWumpus for HuntTheWumpusGame {
         vector[choice].to_string()
     }
 
-    // FIXME: not used
-    fn connect_cavern(&mut self, from: &str, to: &str, direction: &Direction) {
-        self.connections.push(Connection::new(from, to, direction));
-    }
-
-    // FIXME: not used
-    fn maybe_connect_cavern(&mut self, cavern: &str, direction: Direction) {
-        if rand::thread_rng().gen_range(0..10) > 2 {
-            let other = self.any_other(cavern);
-            self.connect_if_available(cavern, &other, &direction);
-            self.connect_if_available(&other, cavern, &direction.opposite());
-        }
-    }
-
     // FIXME: cannot break into several functions due to error below
     // "cannot borrow `*self` as mutable because it is also borrowed as immutable"
     fn connect_caverns(&mut self) {
@@ -409,13 +389,18 @@ impl HuntTheWumpus for HuntTheWumpusGame {
             for direction in &directions {
                 if rand::thread_rng().gen_range(0..10) > 2 {
                     let other = self.any_other(cavern);
-                    match self.find_destination(cavern, direction) {
+                    match HuntTheWumpusGame::find_destination(cavern, direction, &self.connections)
+                    {
                         None => self
                             .connections
                             .push(Connection::new(cavern, &other, direction)),
                         _ => (),
                     }
-                    match self.find_destination(&other, &direction.opposite()) {
+                    match HuntTheWumpusGame::find_destination(
+                        &other,
+                        &direction.opposite(),
+                        &self.connections,
+                    ) {
                         None => self.connections.push(Connection::new(
                             &other,
                             cavern,
@@ -544,9 +529,10 @@ mod tests_for_hunt_the_wumpus_game {
     #[test]
     fn test_move_wumpus() {
         let mut game = set_up();
-        // TODO: find a better way
-        while &game.wumpus_cavern == "cavern_w" {
+        let mut count = 0;
+        while &game.wumpus_cavern == "cavern_w" || count == 100 {
             game.move_wumpus();
+            count += 1;
         }
         assert_ne!(&game.wumpus_cavern, "cavern_w");
     }
@@ -554,14 +540,19 @@ mod tests_for_hunt_the_wumpus_game {
     #[test]
     fn test_find_destination_some() {
         let game = set_up();
-        let result = game.find_destination(&game.player_cavern, &Direction::South);
+        let result = HuntTheWumpusGame::find_destination(
+            &game.player_cavern,
+            &Direction::South,
+            &game.connections,
+        );
         assert_eq!(result, Some(String::from("cavern_s")));
     }
 
     #[test]
     fn test_find_destination_none() {
         let game = set_up();
-        let result = game.find_destination("cavern_s", &Direction::South);
+        let result =
+            HuntTheWumpusGame::find_destination("cavern_s", &Direction::South, &game.connections);
         assert_eq!(result, None);
     }
 
@@ -756,21 +747,6 @@ impl MoveCommand {
         let update_arrows_in = Some(HashMap::from([(player_cavern.to_string(), 0)]));
         (new_quiver, update_arrows_in)
     }
-
-    // TODO: figure out a way to put this in the Game struct; giving self(game) in the parameter?
-    fn find_destination(
-        &self,
-        cavern: &String,
-        direction: &Direction,
-        connections: &Connections,
-    ) -> Option<String> {
-        for c in connections {
-            if &c.from == cavern && &c.direction == direction {
-                return Some(c.to.to_string());
-            }
-        }
-        None
-    }
 }
 impl Command for MoveCommand {
     fn process_command(
@@ -785,7 +761,7 @@ impl Command for MoveCommand {
         quiver: u32,
         arrows_in: &ArrowsIn,
     ) -> (Option<String>, Option<u32>, Option<ArrowsIn>, Option<u32>) {
-        match self.find_destination(player_cavern, &self.direction, connections) {
+        match HuntTheWumpusGame::find_destination(player_cavern, &self.direction, connections) {
             Some(s) => {
                 let new_player_cavern = s;
                 self.check_for_wumpus(message_receiver, &new_player_cavern, wumpus_cavern);
@@ -824,7 +800,6 @@ mod tests_for_move_command {
 
     fn set_up() -> (
         Box<dyn HtwMessageReceiver>,
-        Connections,
         Caverns,
         BatCaverns,
         PitCaverns,
@@ -833,10 +808,6 @@ mod tests_for_move_command {
         MoveCommand,
     ) {
         let message_receiver = Box::new(EnglishHtwMessageReceiver {});
-        let connections = vec![
-            Connection::new("cavern", "cavern_n", &Direction::North),
-            Connection::new("cavern_n", "cavern", &Direction::South),
-        ];
         let caverns = HashSet::from([
             String::from("cavern"),
             String::from("cavern_w"),
@@ -852,7 +823,6 @@ mod tests_for_move_command {
         let command = set_up_command();
         (
             message_receiver,
-            connections,
             caverns,
             bat_caverns,
             pit_caverns,
@@ -864,7 +834,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_check_for_pit_no_pit() {
-        let (message_receiver, _, _, _, pit_caverns, _, _, command) = set_up();
+        let (message_receiver, _, _, pit_caverns, _, _, command) = set_up();
         let player_cavern = String::from("cavern");
         assert_eq!(
             None,
@@ -874,7 +844,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_check_for_pit_pit_exists() {
-        let (message_receiver, _, _, _, pit_caverns, _, _, command) = set_up();
+        let (message_receiver, _, _, pit_caverns, _, _, command) = set_up();
         let player_cavern = String::from("cavern_n");
         assert_eq!(
             Some(4),
@@ -885,14 +855,14 @@ mod tests_for_move_command {
     #[test]
     fn test_randomly_transport_player() {
         let player_cavern = String::from("cavern");
-        let (_, _, caverns, _, _, _, _, command) = set_up();
+        let (_, caverns, _, _, _, _, command) = set_up();
         let result = command.randomly_transport_player(&caverns, &player_cavern);
         assert_ne!(String::from("cavern"), result);
     }
 
     #[test]
     fn test_check_for_bats_no_bats() {
-        let (message_receiver, _, caverns, bat_caverns, _, _, _, command) = set_up();
+        let (message_receiver, caverns, bat_caverns, _, _, _, command) = set_up();
         let player_cavern = String::from("cavern");
         let result =
             command.check_for_bats(&message_receiver, &caverns, &player_cavern, &bat_caverns);
@@ -901,7 +871,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_check_for_bats_bat_exists() {
-        let (message_receiver, _, caverns, bat_caverns, _, _, _, command) = set_up();
+        let (message_receiver, caverns, bat_caverns, _, _, _, command) = set_up();
         let player_cavern = String::from("cavern_n");
         let result =
             command.check_for_bats(&message_receiver, &caverns, &player_cavern, &bat_caverns);
@@ -911,7 +881,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_get_arrows_in_cavern_no_arrows() {
-        let (_, _, _, _, _, arrows_in, _, command) = set_up();
+        let (_, _, _, _, arrows_in, _, command) = set_up();
         let cavern = String::from("cavern");
         let result = command.get_arrows_in_cavern(&arrows_in, &cavern);
         assert_eq!(0, result);
@@ -919,7 +889,7 @@ mod tests_for_move_command {
 
     #[test]
     fn test_get_arrows_in_cavern_5_arrows() {
-        let (_, _, _, _, _, arrows_in, _, command) = set_up();
+        let (_, _, _, _, arrows_in, _, command) = set_up();
         let cavern = String::from("cavern_n");
         let result = command.get_arrows_in_cavern(&arrows_in, &cavern);
         assert_eq!(5, result);
@@ -928,7 +898,7 @@ mod tests_for_move_command {
     #[test]
     fn test_check_for_arrows_no_arrows() {
         let player_cavern = String::from("cavern");
-        let (message_receiver, _, _, _, _, arrows_in, quiver, command) = set_up();
+        let (message_receiver, _, _, _, arrows_in, quiver, command) = set_up();
         let result =
             command.check_for_arrows(&message_receiver, &player_cavern, quiver, &arrows_in);
         assert_eq!(
@@ -940,7 +910,7 @@ mod tests_for_move_command {
     #[test]
     fn test_check_for_arrows_5_arrows() {
         let player_cavern = String::from("cavern_n");
-        let (message_receiver, _, _, _, _, arrows_in, quiver, command) = set_up();
+        let (message_receiver, _, _, _, arrows_in, quiver, command) = set_up();
         let result =
             command.check_for_arrows(&message_receiver, &player_cavern, quiver, &arrows_in);
         assert_eq!(
@@ -950,22 +920,6 @@ mod tests_for_move_command {
             ),
             result
         );
-    }
-
-    #[test]
-    fn test_for_find_destination_not_found() {
-        let (_, connections, _, _, _, _, _, command) = set_up();
-        let cavern = String::from("cavern_n");
-        let result = command.find_destination(&cavern, &command.direction, &connections);
-        assert_eq!(None, result);
-    }
-
-    #[test]
-    fn test_for_find_destination_found() {
-        let (_, connections, _, _, _, _, _, command) = set_up();
-        let cavern = String::from("cavern");
-        let result = command.find_destination(&cavern, &command.direction, &connections);
-        assert_eq!(Some(String::from("cavern_n")), result);
     }
 }
 
