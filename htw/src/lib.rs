@@ -1172,15 +1172,11 @@ impl ArrowTracker {
         player_cavern: &String,
         wumpus_cavern: &String,
     ) -> Option<u32> {
-        let mut next_cavern = None;
         let mut count = 0;
-        while {
-            next_cavern = self.next_cavern(self.arrow_cavern.to_string(), direction, connections);
-            &next_cavern
-        } != &None
+        while let Some(c) = self.next_cavern(self.arrow_cavern.to_string(), direction, connections)
         {
             count += 1;
-            self.arrow_cavern = next_cavern.unwrap();
+            self.arrow_cavern = c;
             if self.shot_self_in_back(message_receiver, player_cavern) {
                 let self_damage = Some(3);
                 return self_damage;
