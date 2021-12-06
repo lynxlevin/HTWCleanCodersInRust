@@ -1208,8 +1208,9 @@ mod tests_for_arrow_tracker {
 
     #[test]
     fn test_next_cavern_exists_not() {
-        let (tracker, _, direction, connections) = set_up();
-        let cavern = String::from("cavern_n");
+        let (tracker, _, _, connections) = set_up();
+        let direction = Direction::West;
+        let cavern = String::from("cavern");
         let result = tracker.next_cavern(cavern, &direction, &connections);
         assert_eq!(None, result);
     }
@@ -1250,16 +1251,6 @@ mod tests_for_arrow_tracker {
         let result = tracker.shot_wumpus(&message_receiver, &wumpus_cavern);
         assert_eq!(tracker.hit_something, false);
         assert_eq!(result, false);
-    }
-
-    #[test]
-    fn test_shot_wumpus_true() {
-        let (mut tracker, message_receiver, _, _) = set_up();
-        let wumpus_cavern = String::from("cavern");
-        assert_eq!(tracker.hit_something, false);
-        let result = tracker.shot_wumpus(&message_receiver, &wumpus_cavern);
-        assert_eq!(tracker.hit_something, true);
-        assert_eq!(result, true);
     }
 
     #[test]
