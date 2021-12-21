@@ -1,8 +1,8 @@
-use htw::Caverns;
-use htw::Direction;
-use htw::EnglishHtwMessageReceiver;
+use htw::direction::Direction;
+use htw::english_htw_message_receiver::EnglishHtwMessageReceiver;
+use htw::hunt_the_wumpus_game::Caverns;
+use htw::hunt_the_wumpus_game::HuntTheWumpusGame;
 use htw::HuntTheWumpus;
-use htw::HuntTheWumpusGame;
 use rand::Rng;
 use std::collections::HashSet;
 use std::io;
