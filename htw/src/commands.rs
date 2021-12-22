@@ -419,37 +419,26 @@ pub mod commands {
             return None;
         }
 
-        fn shot_self_in_back(
+        fn shoot_self_in_back(
             &mut self,
             message_receiver: &Box<dyn HtwMessageReceiver>,
-            player_cavern: &String,
-        ) -> bool {
-            if &self.arrow_cavern == player_cavern {
-                message_receiver.player_shoots_self_in_back();
-                self.hit_something = true;
-                true
-            } else {
-                false
-            }
+        ) -> Option<u32> {
+            message_receiver.player_shoots_self_in_back();
+            self.hit_something = true;
+            let self_damage = Some(3);
+            self_damage
         }
 
-        fn shot_wumpus(
-            &mut self,
-            message_receiver: &Box<dyn HtwMessageReceiver>,
-            wumpus_cavern: &String,
-        ) -> bool {
-            if &self.arrow_cavern == wumpus_cavern {
-                message_receiver.player_kills_wumpus();
-                self.hit_something = true;
-                true
-            } else {
-                false
-            }
+        fn shoot_wumpus(&mut self, message_receiver: &Box<dyn HtwMessageReceiver>) {
+            message_receiver.player_kills_wumpus();
+            self.hit_something = true;
         }
 
-        fn shoot_wall(&mut self, message_receiver: &Box<dyn HtwMessageReceiver>) {
+        fn shoot_wall(&mut self, message_receiver: &Box<dyn HtwMessageReceiver>) -> Option<u32> {
             message_receiver.player_shoots_wall();
             self.hit_something = true;
+            let self_damage = Some(3);
+            self_damage
         }
 
         fn track_arrow(
@@ -466,24 +455,21 @@ pub mod commands {
             {
                 count += 1;
                 self.arrow_cavern = c;
-                if self.shot_self_in_back(message_receiver, player_cavern) {
-                    let self_damage = Some(3);
+                if &self.arrow_cavern == player_cavern {
+                    let self_damage = self.shoot_self_in_back(message_receiver);
                     return self_damage;
                 };
-                if self.shot_wumpus(message_receiver, wumpus_cavern) {
+                if &self.arrow_cavern == wumpus_cavern {
+                    self.shoot_wumpus(message_receiver);
                     return None;
                 };
                 if count > 100 {
                     return None;
                 };
             }
-            if &self.arrow_cavern == player_cavern {
-                self.shoot_wall(message_receiver);
-                let self_damage = Some(3);
-                self_damage
-            } else {
-                None
-            }
+            // when there is no connecting cavern in the shooting direction, the arrow hits wall.
+            let self_damage = self.shoot_wall(message_receiver);
+            self_damage
         }
     }
 
@@ -554,34 +540,18 @@ pub mod commands {
         }
 
         #[test]
-        fn test_shot_self_in_back_false() {
+        fn test_shoot_self_in_back() {
             let (mut tracker, message_receiver, _, _) = set_up();
-            assert_eq!(tracker.hit_something, false);
-            let player_cavern = String::from("cavern_n");
-            let result = tracker.shot_self_in_back(&message_receiver, &player_cavern);
-            assert!(!tracker.arrow_hit_something());
-            assert_eq!(result, false);
+            let result = tracker.shoot_self_in_back(&message_receiver);
+            assert_eq!(result, Some(3));
         }
 
         #[test]
-        fn test_shot_self_in_back_true() {
+        fn test_shoot_wall() {
             let (mut tracker, message_receiver, _, _) = set_up();
-            assert_eq!(tracker.hit_something, false);
-            let player_cavern = String::from("cavern");
-            let result = tracker.shot_self_in_back(&message_receiver, &player_cavern);
+            let self_damage = tracker.shoot_wall(&message_receiver);
             assert!(tracker.arrow_hit_something());
-            assert_eq!(tracker.hit_something, true);
-            assert_eq!(result, true);
-        }
-
-        #[test]
-        fn test_shot_wumpus_false() {
-            let (mut tracker, message_receiver, _, _) = set_up();
-            let wumpus_cavern = String::from("cavern_n");
-            assert_eq!(tracker.hit_something, false);
-            let result = tracker.shot_wumpus(&message_receiver, &wumpus_cavern);
-            assert_eq!(tracker.hit_something, false);
-            assert_eq!(result, false);
+            assert_eq!(Some(3), self_damage);
         }
 
         #[test]
