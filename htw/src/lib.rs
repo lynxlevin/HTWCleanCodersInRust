@@ -21,6 +21,7 @@ pub trait HtwMessageReceiver {
     fn player_moves_to_wumpus(&self);
     fn wumpus_moves_to_player(&self);
     fn bats_transport(&self);
+    fn you_die(&self);
 }
 
 pub trait HuntTheWumpus {

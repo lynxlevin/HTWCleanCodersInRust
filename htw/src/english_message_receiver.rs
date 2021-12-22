@@ -73,5 +73,10 @@ pub mod english_htw_message_receiver {
         fn bats_transport(&self) {
             println!("Some bats carried you away.");
         }
+
+        fn you_die(&self) {
+            println!("You have died of your wounds.");
+            process::exit(0);
+        }
     }
 }

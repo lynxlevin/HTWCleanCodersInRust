@@ -6,7 +6,6 @@ pub mod htw_game {
     use crate::HuntTheWumpus;
     use rand::Rng;
     use std::collections::{HashMap, HashSet};
-    use std::process;
 
     pub type Connections = Vec<Connection>;
     pub type Caverns = HashSet<String>;
@@ -125,8 +124,7 @@ pub mod htw_game {
         fn hit(&mut self, points: u32) {
             self.hit_points = self.hit_points.saturating_sub(points);
             if self.hit_points <= 0 {
-                println!("You have died of your wounds.");
-                process::exit(0);
+                self.message_receiver.you_die();
             }
         }
     }
