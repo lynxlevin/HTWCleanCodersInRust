@@ -447,6 +447,11 @@ pub mod commands {
             }
         }
 
+        fn shoot_wall(&mut self, message_receiver: &Box<dyn HtwMessageReceiver>) {
+            message_receiver.player_shoots_wall();
+            self.hit_something = true;
+        }
+
         fn track_arrow(
             &mut self,
             direction: &Direction,
@@ -473,7 +478,7 @@ pub mod commands {
                 };
             }
             if &self.arrow_cavern == player_cavern {
-                message_receiver.player_shoots_wall();
+                self.shoot_wall(message_receiver);
                 let self_damage = Some(3);
                 self_damage
             } else {
@@ -554,7 +559,7 @@ pub mod commands {
             assert_eq!(tracker.hit_something, false);
             let player_cavern = String::from("cavern_n");
             let result = tracker.shot_self_in_back(&message_receiver, &player_cavern);
-            assert_eq!(tracker.hit_something, false);
+            assert!(!tracker.arrow_hit_something());
             assert_eq!(result, false);
         }
 
@@ -564,6 +569,7 @@ pub mod commands {
             assert_eq!(tracker.hit_something, false);
             let player_cavern = String::from("cavern");
             let result = tracker.shot_self_in_back(&message_receiver, &player_cavern);
+            assert!(tracker.arrow_hit_something());
             assert_eq!(tracker.hit_something, true);
             assert_eq!(result, true);
         }
@@ -606,6 +612,7 @@ pub mod commands {
                 &wumpus_cavern,
             );
             assert_eq!(Some(3), result);
+            assert!(tracker.arrow_hit_something());
         }
 
         #[test]
@@ -622,6 +629,7 @@ pub mod commands {
                 &wumpus_cavern,
             );
             assert_eq!(Some(3), result);
+            assert!(tracker.arrow_hit_something());
         }
     }
 }
