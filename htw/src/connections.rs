@@ -14,8 +14,7 @@ pub mod connections {
             Connections { connections }
         }
 
-        // TODO: change cavern to String
-        pub fn report_nearby(&self, cavern: &String, target_caverns: &Caverns) -> bool {
+        pub fn report_nearby(&self, cavern: &str, target_caverns: &Caverns) -> bool {
             let mut result = false;
             for c in &self.connections {
                 result = result
@@ -24,8 +23,7 @@ pub mod connections {
             result
         }
 
-        // TODO: change cavern to String
-        pub fn find_destination(&self, cavern: &String, direction: &Direction) -> Option<String> {
+        pub fn find_destination(&self, cavern: &str, direction: &Direction) -> Option<String> {
             for c in &self.connections {
                 if c.from() == cavern && c.direction() == direction {
                     return Some(c.to().to_string());
@@ -34,7 +32,7 @@ pub mod connections {
             None
         }
 
-        pub fn report_available_directions(&self, cavern: &String) -> Vec<Direction> {
+        pub fn report_available_directions(&self, cavern: &str) -> Vec<Direction> {
             let mut result = Vec::new();
             for c in &self.connections {
                 if c.from() == cavern {
@@ -45,17 +43,29 @@ pub mod connections {
         }
 
         fn is_connectable_cavern(&self, this: &str, other: &str, direction: &Direction) -> bool {
-            let mut result = true;
             for c in &self.connections {
                 if c.from() == this {
-                    result = result && c.to() != other && c.direction() != direction;
+                    let unavailable_cavern = c.to() == other;
+                    let unavailable_direction = c.direction() == direction;
+                    if unavailable_cavern || unavailable_direction {
+                        return false;
+                    }
                 }
             }
-            result
+            true
         }
 
-        // FIXME: cannot break into several functions due to error below
-        // "cannot borrow `*self` as mutable because it is also borrowed as immutable"
+        fn check_and_connect_cavern(&mut self, from: &str, to: &str, direction: &Direction) {
+            if self.is_connectable_cavern(from, to, direction)
+                && self.is_connectable_cavern(to, from, &direction.opposite())
+            {
+                let connection = Connection::new(from, to, direction);
+                self.connections.push(connection);
+                let connection = Connection::new(to, from, &direction.opposite());
+                self.connections.push(connection);
+            }
+        }
+
         pub fn connect_caverns(&mut self, caverns: &Caverns) {
             let directions = vec![
                 Direction::North,
@@ -67,17 +77,7 @@ pub mod connections {
                 for direction in &directions {
                     if rand::thread_rng().gen_range(0..10) > 2 {
                         let other = any_other(cavern, caverns);
-                        if self.is_connectable_cavern(cavern, &other, direction) {
-                            self.connections
-                                .push(Connection::new(cavern, &other, direction));
-                        }
-                        if self.is_connectable_cavern(&other, cavern, &direction.opposite()) {
-                            self.connections.push(Connection::new(
-                                &other,
-                                cavern,
-                                &direction.opposite(),
-                            ));
-                        }
+                        self.check_and_connect_cavern(cavern, &other, direction);
                     }
                 }
             }
@@ -199,15 +199,52 @@ pub mod connections {
                 &Direction::North,
             )]);
             let this = "cavern";
-            let north = Direction::North;
-            let west = Direction::West;
+            let available_cavern = "cavern_w";
+            let available_direction = Direction::West;
+            let unavailable_cavern = "cavern_n";
+            let unavailable_direction = Direction::North;
             // can connect to cavern_w but not to cavern_n
-            assert!(connections.is_connectable_cavern(this, "cavern_w", &west));
-            assert!(!connections.is_connectable_cavern(this, "cavern_n", &west));
+            assert!(connections.is_connectable_cavern(
+                this,
+                available_cavern,
+                &available_direction
+            ));
+            assert!(!connections.is_connectable_cavern(
+                this,
+                unavailable_cavern,
+                &available_direction
+            ));
 
+            // cannot connect to Direction::North anymore
+            assert!(!connections.is_connectable_cavern(
+                this,
+                unavailable_cavern,
+                &unavailable_direction
+            ));
+            assert!(!connections.is_connectable_cavern(
+                this,
+                available_cavern,
+                &unavailable_direction
+            ));
+        }
+
+        #[test]
+        fn test_check_and_connect_cavern() {
+            let mut connections = Connections::new(vec![]);
+            connections.check_and_connect_cavern("cavern", "cavern_n", &Direction::North);
+            assert_eq!(
+                connections.connections[0],
+                Connection::new("cavern", "cavern_n", &Direction::North)
+            );
+            assert_eq!(
+                connections.connections[1],
+                Connection::new("cavern_n", "cavern", &Direction::South)
+            );
+            // cannot connect to cavern_n anymore
+            connections.check_and_connect_cavern("cavern", "cavern_n", &Direction::West);
             // cannot connect to North anymore
-            assert!(!connections.is_connectable_cavern(this, "cavern_n", &north));
-            assert!(!connections.is_connectable_cavern(this, "cavern_w", &north));
+            connections.check_and_connect_cavern("cavern", "another_cavern", &Direction::North);
+            assert_eq!(connections.connections.len(), 2);
         }
 
         #[test]
@@ -223,8 +260,24 @@ pub mod connections {
             ]);
             connections.connect_caverns(&caverns);
             assert_ne!(0, connections.connections.len());
-            // assert_eq!(Connections::new(vec![]), connections);
-            // TODO: assert that unavailable_other and unavailable_direction are less than 2 in all connections
+
+            for cavern in caverns {
+                let mut connected_caverns = vec![];
+                let mut connected_directions = vec![];
+                for c in &connections.connections {
+                    if c.from() == cavern {
+                        connected_caverns.push(String::from(c.to()));
+                        connected_directions.push(String::from(c.direction().name()));
+                    }
+                }
+                let unique_connected_caverns: HashSet<&String> = connected_caverns.iter().collect();
+                let unique_connected_directions: HashSet<&String> =
+                    connected_directions.iter().collect();
+                // assert that cavernA is not connected to cavernB in multiple directions
+                assert!(connected_caverns.len() == unique_connected_caverns.len());
+                // assert that a cavern does not have multiple connections in one direction
+                assert!(connected_directions.len() == unique_connected_directions.len());
+            }
         }
     }
 }
