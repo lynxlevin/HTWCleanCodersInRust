@@ -468,8 +468,11 @@ pub mod commands {
                 };
             }
             // when there is no connecting cavern in the shooting direction, the arrow hits wall.
-            let self_damage = self.shoot_wall(message_receiver);
-            self_damage
+            if &self.arrow_cavern == player_cavern {
+                let self_damage = self.shoot_wall(message_receiver);
+                return self_damage;
+            }
+            None
         }
     }
 
@@ -499,6 +502,8 @@ pub mod commands {
                 Connection::new("cavern_nn", "cavern_n", &Direction::South),
                 Connection::new("cavern_nn", "cavern", &Direction::North),
                 Connection::new("cavern", "cavern_nn", &Direction::South),
+                Connection::new("cavern", "cavern_w", &Direction::West),
+                Connection::new("cavern_w", "cavern", &Direction::East),
             ];
             (tracker, message_receiver, direction, connections)
         }
@@ -525,7 +530,7 @@ pub mod commands {
         #[test]
         fn test_next_cavern_exists_not() {
             let (tracker, _, _, connections) = set_up();
-            let direction = Direction::West;
+            let direction = Direction::East;
             let cavern = String::from("cavern");
             let result = tracker.next_cavern(cavern, &direction, &connections);
             assert_eq!(None, result);
@@ -588,7 +593,7 @@ pub mod commands {
         #[test]
         fn test_track_arrow_shoots_wall() {
             let (mut tracker, message_receiver, _, connections) = set_up();
-            let direction = Direction::West;
+            let direction = Direction::East;
             let player_cavern = String::from("cavern");
             let wumpus_cavern = String::from("none");
             let result = tracker.track_arrow(
@@ -600,6 +605,23 @@ pub mod commands {
             );
             assert_eq!(Some(3), result);
             assert!(tracker.arrow_hit_something());
+        }
+
+        #[test]
+        fn test_track_arrow_hits_nothing() {
+            let (mut tracker, message_receiver, _, connections) = set_up();
+            let direction = Direction::West;
+            let player_cavern = String::from("cavern");
+            let wumpus_cavern = String::from("none");
+            let result = tracker.track_arrow(
+                &direction,
+                &message_receiver,
+                &connections,
+                &player_cavern,
+                &wumpus_cavern,
+            );
+            assert_eq!(None, result);
+            assert!(!tracker.arrow_hit_something());
         }
     }
 }
