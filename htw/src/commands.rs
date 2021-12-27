@@ -1,8 +1,8 @@
 pub mod commands {
+    use crate::connection::connection::Connection;
+    use crate::connections::connections::Connections;
     use crate::direction::direction::Direction;
-    use crate::htw_game::htw_game::{
-        ArrowsIn, BatCaverns, Caverns, Command, Connections, HuntTheWumpusGame, PitCaverns,
-    };
+    use crate::htw_game::htw_game::{ArrowsIn, BatCaverns, Caverns, Command, PitCaverns};
     use crate::HtwMessageReceiver;
     use rand::Rng;
     use std::collections::{HashMap, HashSet};
@@ -120,7 +120,7 @@ pub mod commands {
             quiver: u32,
             arrows_in: &ArrowsIn,
         ) -> (Option<String>, Option<u32>, Option<ArrowsIn>, Option<u32>) {
-            match HuntTheWumpusGame::find_destination(player_cavern, &self.direction, connections) {
+            match connections.find_destination(player_cavern, &self.direction) {
                 Some(s) => {
                     let new_player_cavern = s;
                     self.check_for_wumpus(message_receiver, &new_player_cavern, wumpus_cavern);
@@ -335,7 +335,7 @@ pub mod commands {
                 let self_damage = arrow_tracker.track_arrow(
                     &self.direction,
                     message_receiver,
-                    connections,
+                    &connections.connections,
                     player_cavern,
                     wumpus_cavern,
                 );
@@ -409,7 +409,7 @@ pub mod commands {
             &self,
             cavern: String,
             direction: &Direction,
-            connections: &Connections,
+            connections: &Vec<Connection>,
         ) -> Option<String> {
             for c in connections {
                 if cavern == c.from() && direction == c.direction() {
@@ -445,7 +445,7 @@ pub mod commands {
             &mut self,
             direction: &Direction,
             message_receiver: &Box<dyn HtwMessageReceiver>,
-            connections: &Connections,
+            connections: &Vec<Connection>,
             player_cavern: &String,
             wumpus_cavern: &String,
         ) -> Option<u32> {
@@ -487,7 +487,7 @@ pub mod commands {
             ArrowTracker,
             Box<dyn HtwMessageReceiver>,
             Direction,
-            Connections,
+            Vec<Connection>,
         ) {
             let tracker = set_up_tracker();
             let message_receiver = Box::new(EnglishHtwMessageReceiver {});

@@ -1,13 +1,12 @@
 pub mod htw_game {
     use crate::commands::commands::{MoveCommand, RestCommand, ShootCommand};
-    use crate::connection::connection::Connection;
+    use crate::connections::connections::Connections;
     use crate::Direction;
     use crate::HtwMessageReceiver;
     use crate::HuntTheWumpus;
     use rand::Rng;
     use std::collections::{HashMap, HashSet};
 
-    pub type Connections = Vec<Connection>;
     pub type Caverns = HashSet<String>;
     pub type BatCaverns = HashSet<String>;
     pub type PitCaverns = HashSet<String>;
@@ -48,7 +47,7 @@ pub mod htw_game {
             caverns: Caverns,
         ) -> Box<dyn HuntTheWumpus> {
             Box::new(HuntTheWumpusGame {
-                connections: vec![],
+                connections: Connections::new(vec![]),
                 caverns,
                 player_cavern: String::from("None"),
                 message_receiver,
@@ -62,54 +61,38 @@ pub mod htw_game {
             }) as Box<dyn HuntTheWumpus>
         }
 
-        pub fn find_destination(
-            cavern: &str,
-            direction: &Direction,
-            connections: &Connections,
-        ) -> Option<String> {
-            for c in connections {
-                if c.from() == cavern && c.direction() == direction {
-                    return Some(c.to().to_string());
-                }
-            }
-            None
-        }
-
+        // TODO: write test
         fn report_status(&self) {
-            self.report_available_directions();
-            if self.report_nearby(&self.bat_caverns) {
+            let directions = self
+                .connections
+                .report_available_directions(&self.player_cavern);
+            for direction in directions {
+                self.message_receiver.passage(&direction);
+            }
+
+            if self
+                .connections
+                .report_nearby(&self.player_cavern, &self.bat_caverns)
+            {
                 self.message_receiver.hear_bats();
             }
-            if self.report_nearby(&self.pit_caverns) {
+            if self
+                .connections
+                .report_nearby(&self.player_cavern, &self.pit_caverns)
+            {
                 self.message_receiver.hear_pit();
             }
-            if self.report_nearby(&HashSet::from([String::from(&self.wumpus_cavern)])) {
+            if self.connections.report_nearby(
+                &self.player_cavern,
+                &HashSet::from([String::from(&self.wumpus_cavern)]),
+            ) {
                 self.message_receiver.smell_wumpus();
-            }
-        }
-
-        // TODO: see if report_neaby could be implemented using predicate
-        // this is a work-around without predicate
-        fn report_nearby(&self, test_caverns: &Caverns) -> bool {
-            for c in &self.connections {
-                if c.from() == self.player_cavern && test_caverns.contains(&String::from(c.to())) {
-                    return true;
-                }
-            }
-            false
-        }
-
-        fn report_available_directions(&self) {
-            for c in &self.connections {
-                if c.from() == self.player_cavern {
-                    self.message_receiver.passage(c.direction());
-                }
             }
         }
 
         fn move_wumpus(&mut self) {
             let mut wumpus_choices = vec![];
-            for c in &self.connections {
+            for c in &self.connections.connections {
                 if self.wumpus_cavern == c.from() {
                     wumpus_choices.push(c.to());
                 }
@@ -156,61 +139,6 @@ pub mod htw_game {
         }
         fn get_hit_points(&self) -> u32 {
             self.hit_points
-        }
-
-        fn any_other(&self, cavern: &str) -> String {
-            let mut other = String::from(cavern);
-            while other == String::from(cavern) {
-                other = self.any_cavern();
-            }
-            other
-        }
-
-        fn any_cavern(&self) -> String {
-            let vector = Vec::from_iter(&self.caverns);
-            let n = vector.len();
-            let choice = rand::thread_rng().gen_range(0..n);
-            vector[choice].to_string()
-        }
-
-        // FIXME: cannot break into several functions due to error below
-        // "cannot borrow `*self` as mutable because it is also borrowed as immutable"
-        fn connect_caverns(&mut self) {
-            let directions = vec![
-                Direction::North,
-                Direction::South,
-                Direction::East,
-                Direction::West,
-            ];
-            for cavern in &self.caverns {
-                for direction in &directions {
-                    if rand::thread_rng().gen_range(0..10) > 2 {
-                        let other = self.any_other(cavern);
-                        match HuntTheWumpusGame::find_destination(
-                            cavern,
-                            direction,
-                            &self.connections,
-                        ) {
-                            None => self
-                                .connections
-                                .push(Connection::new(cavern, &other, direction)),
-                            _ => (),
-                        }
-                        match HuntTheWumpusGame::find_destination(
-                            &other,
-                            &direction.opposite(),
-                            &self.connections,
-                        ) {
-                            None => self.connections.push(Connection::new(
-                                &other,
-                                cavern,
-                                &direction.opposite(),
-                            )),
-                            _ => (),
-                        }
-                    }
-                }
-            }
         }
         fn check_wumpus_moved_to_player(&self) {
             if self.player_cavern == self.wumpus_cavern {
@@ -259,12 +187,25 @@ pub mod htw_game {
         fn make_move_command(&mut self, direction: Direction) {
             self.command = Box::new(MoveCommand::new(direction));
         }
+
+        fn caverns(&self) -> &Caverns {
+            &self.caverns
+        }
+
+        fn connect_caverns(&mut self) {
+            self.connections.connect_caverns(&self.caverns);
+        }
     }
 
     #[cfg(test)]
     mod tests_for_hunt_the_wumpus_game {
         use super::*;
+        use crate::connection::connection::Connection;
         use crate::english_message_receiver::english_htw_message_receiver::EnglishHtwMessageReceiver;
+
+        fn type_of<T>(_: &T) -> &str {
+            std::any::type_name::<T>()
+        }
 
         fn set_up() -> HuntTheWumpusGame {
             // TODO: mock message_receiver
@@ -289,6 +230,7 @@ pub mod htw_game {
                 Connection::new("cavern_n", "cavern_nn", &Direction::North),
                 Connection::new("cavern_nn", "cavern_n", &Direction::South),
             ];
+            let connections = Connections::new(connections);
             let player_cavern = String::from("cavern");
             let bat_caverns = HashSet::from([String::from("cavern_e")]);
             let pit_caverns = HashSet::from([String::from("cavern_s")]);
@@ -313,20 +255,6 @@ pub mod htw_game {
         }
 
         #[test]
-        fn test_report_nearby_true() {
-            let game = set_up();
-            let test_caverns = HashSet::from([String::from("cavern_e")]);
-            assert_eq!(game.report_nearby(&test_caverns), true);
-        }
-
-        #[test]
-        fn test_report_nearby_false() {
-            let game = set_up();
-            let test_caverns = HashSet::from([String::from("cavern_nn")]);
-            assert_eq!(game.report_nearby(&test_caverns), false);
-        }
-
-        #[test]
         fn test_move_wumpus() {
             let mut game = set_up();
             let mut count = 0;
@@ -335,28 +263,6 @@ pub mod htw_game {
                 count += 1;
             }
             assert_ne!(&game.wumpus_cavern, "cavern_w");
-        }
-
-        #[test]
-        fn test_find_destination_some() {
-            let game = set_up();
-            let result = HuntTheWumpusGame::find_destination(
-                &game.player_cavern,
-                &Direction::South,
-                &game.connections,
-            );
-            assert_eq!(result, Some(String::from("cavern_s")));
-        }
-
-        #[test]
-        fn test_find_destination_none() {
-            let game = set_up();
-            let result = HuntTheWumpusGame::find_destination(
-                "cavern_s",
-                &Direction::South,
-                &game.connections,
-            );
-            assert_eq!(result, None);
         }
 
         #[test]
@@ -438,19 +344,23 @@ pub mod htw_game {
         }
 
         #[test]
-        fn test_any_other() {
+        fn test_caverns_method() {
             let game = set_up();
-            assert_ne!("cavern", game.any_other("cavern"));
+            let caverns = game.caverns();
+            assert_eq!(
+                type_of(caverns),
+                "std::collections::hash::set::HashSet<alloc::string::String>"
+            );
+            assert_eq!(caverns, &game.caverns);
         }
 
         #[test]
-        fn test_any_cavern() {
-            let game = set_up();
-            let result = game.any_cavern();
-            assert!(game.caverns.contains(&result));
+        fn test_connect_caverns() {
+            let mut game = set_up();
+            game.connect_caverns();
+            assert_ne!(0, game.connections.connections.len());
         }
 
-        //TODO: write test for connect_caverns, should it be smaller?
         //TODO: is it possible to test execute_command?
         //TODO: to test make_commands, Command needs to impl Debug, is it wise to do so?
     }

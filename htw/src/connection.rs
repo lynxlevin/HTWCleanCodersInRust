@@ -1,6 +1,7 @@
 pub mod connection {
     use crate::direction::direction::Direction;
 
+    #[derive(Debug, PartialEq)]
     pub struct Connection {
         from: String,
         to: String,

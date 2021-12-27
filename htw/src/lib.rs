@@ -1,9 +1,11 @@
 mod commands;
 mod connection;
+pub mod connections;
 pub mod direction;
 pub mod english_message_receiver;
 pub mod htw_game;
 use crate::direction::direction::Direction;
+use crate::htw_game::htw_game::Caverns;
 
 pub trait HtwMessageReceiver {
     fn no_passage(&self);
@@ -34,12 +36,11 @@ pub trait HuntTheWumpus {
     fn set_quiver(&mut self, arrows: u32);
     fn get_quiver(&self) -> u32;
     fn get_hit_points(&self) -> u32;
-    fn any_other(&self, cavern: &str) -> String;
-    fn any_cavern(&self) -> String;
-    fn connect_caverns(&mut self);
     fn check_wumpus_moved_to_player(&self);
     fn execute_command(&mut self);
     fn make_rest_command(&mut self);
     fn make_shoot_command(&mut self, direction: Direction);
     fn make_move_command(&mut self, direction: Direction);
+    fn caverns(&self) -> &Caverns;
+    fn connect_caverns(&mut self);
 }

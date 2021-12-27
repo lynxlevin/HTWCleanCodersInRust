@@ -1,3 +1,4 @@
+use htw::connections::connections;
 use htw::direction::direction::Direction;
 use htw::english_message_receiver::english_htw_message_receiver::EnglishHtwMessageReceiver;
 use htw::htw_game::htw_game::Caverns;
@@ -119,14 +120,14 @@ fn choose_name(names: Vec<&str>) -> &str {
 }
 
 fn set_special_caverns(game: &mut Box<dyn HuntTheWumpus>) {
-  let player_cavern = game.any_cavern();
+  let player_cavern = connections::any_cavern(game.caverns());
   game.set_player_cavern(&player_cavern);
-  game.set_wumpus_cavern(&game.any_other(&player_cavern));
-  game.add_bat_cavern(&game.any_other(&player_cavern));
-  game.add_bat_cavern(&game.any_other(&player_cavern));
-  game.add_bat_cavern(&game.any_other(&player_cavern));
+  game.set_wumpus_cavern(&connections::any_other(&player_cavern, game.caverns()));
+  game.add_bat_cavern(&connections::any_other(&player_cavern, game.caverns()));
+  game.add_bat_cavern(&connections::any_other(&player_cavern, game.caverns()));
+  game.add_bat_cavern(&connections::any_other(&player_cavern, game.caverns()));
 
-  game.add_pit_cavern(&game.any_other(&player_cavern));
-  game.add_pit_cavern(&game.any_other(&player_cavern));
-  game.add_pit_cavern(&game.any_other(&player_cavern));
+  game.add_pit_cavern(&connections::any_other(&player_cavern, game.caverns()));
+  game.add_pit_cavern(&connections::any_other(&player_cavern, game.caverns()));
+  game.add_pit_cavern(&connections::any_other(&player_cavern, game.caverns()));
 }
