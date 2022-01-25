@@ -15,3 +15,7 @@ The rule is to wander round in a cavern and hunt the wumpus.
 You can move around by `n`(North), `e`(East), `s`(South), `w`(West) commands.
 You can shoot an arrow by `sn`(Shoot North), `se`(Shoot East), `ss`(Shoot South), `sw`(Shoot West) commands.
 When your arrow hits the wumpus, you win. If the wumpus finds you, you lose.
+
+# Future Updates
+- planning implementing Japanese version in clean architecture
+- planning implementing web version using rust framework
